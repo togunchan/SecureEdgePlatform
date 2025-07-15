@@ -13,9 +13,16 @@ void MiniDB::insertRow(const std::vector<std::string> &values)
     {
         throw std::runtime_error("Columns must be defined before inserting rows.");
     }
+
     if (values.size() != columns_.size())
     {
         throw std::runtime_error("Number of values must match the number of columns.");
     }
+
     rows_.push_back(values);
+}
+
+std::string MiniDB::getTableFilePath() const
+{
+    return "data/" + tableName_ + ".tbl";
 }
