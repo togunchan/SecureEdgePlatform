@@ -56,3 +56,54 @@ void MiniDB::save() const
         outFile << "\n";
     }
 }
+
+std::vector<std::map<std::string, std::string>> MiniDB::selectAll() const
+{
+    std::vector<std::map<std::string, std::string>> result;
+
+    std::ifstream inFile(getTableFilePath());
+    if (!inFile.is_open())
+    {
+        std::runtime_error("Failed to open file for reading:" + getTableFilePath());
+    }
+
+    std::string line;
+
+    // read column headers
+    std::getline(inFile, line);
+    std::vector<std::string> fileColumns;
+    std::stringstream headerStream(line);
+    std::string header;
+    while (std::getline(headerStream, header, ','))
+    {
+        fileColumns.push_back(header);
+    }
+
+    // read data rows
+    while (std::getline(inFile, line))
+    {
+        std::vector<std::string> values;
+        std::stringstream rowStream(line);
+        std::string value;
+
+        while (std::getline(rowStream, value, ','))
+        {
+            values.push_back(value);
+        }
+
+        if (values.size() != fileColumns.size())
+        {
+            continue;
+        }
+
+        std::map<std::string, std::string> rowMap;
+        for (size_t i = 0; i < fileColumns.size(); ++i)
+        {
+            rowMap[fileColumns[i]] = values[i];
+        }
+
+        result.push_back(rowMap);
+    }
+
+    return result;
+}
