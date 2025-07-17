@@ -130,3 +130,29 @@ void MiniDB::clear()
     }
     outFile << "\n";
 }
+
+std::string MiniDB::exportToJson() const
+{
+    std::ostringstream oss;
+
+    oss << "[";
+    for (const auto &row : rows_)
+    {
+        oss << "{";
+        for (size_t i = 0; i < row.size(); ++i)
+        {
+            oss << "\"" << columns_[i] << "\":\"" << row[i] << "\"";
+            if (i != row.size() - 1)
+                oss << ",";
+        }
+        oss << "}";
+        if (&row != &rows_.back())
+            oss << ",";
+
+        oss << "\n";
+    }
+
+    oss << "]";
+
+    return oss.str();
+}

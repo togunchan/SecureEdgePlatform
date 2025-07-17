@@ -118,6 +118,40 @@ public:
      */
     void clear();
 
+    /**
+     * @brief Serializes the table data into a JSON-formatted string.
+     * @return A string containing the table rows in JSON array format.
+     *
+     * Converts the in-memory table rows into a human-readable JSON representation.
+     * Each row is serialized as a JSON object, with column names as keys and cell
+     * values as string values.
+     *
+     * Example output:
+     * @code
+     * [
+     *   {
+     *     "Name": "Alice",
+     *     "Age": "30",
+     *     "Country": "USA"
+     *   },
+     *   {
+     *     "Name": "Bob",
+     *     "Age": "25",
+     *     "Country": "Canada"
+     *   }
+     * ]
+     * @endcode
+     *
+     * Use cases:
+     * - Exporting data for web APIs or external tools.
+     * - Debugging or logging table contents.
+     * - Interfacing with systems that consume JSON.
+     *
+     * @note Assumes that `columns_` and `rows_` are properly aligned.
+     * @throws None. This method does not perform file I/O or error handling.
+     */
+    std::string exportToJson() const;
+
 private:
     /**
      * @brief Stores the name of the table.
