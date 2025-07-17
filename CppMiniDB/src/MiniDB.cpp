@@ -107,3 +107,26 @@ std::vector<std::map<std::string, std::string>> MiniDB::selectAll() const
 
     return result;
 }
+
+void MiniDB::clear()
+{
+    // Clear the in-memory rows
+    rows_.clear();
+
+    // Clear the disk file by opening with trunc mode
+    std::ofstream outFile(getTableFilePath(), std::ios::trunc);
+
+    if (!outFile.is_open())
+    {
+        throw std::runtime_error("Failed to open file for writing.");
+    }
+
+    // Since the file is empty after opening with trunc mode, re-write only the header row
+    for (size_t i = 0; i < columns_.size(); ++i)
+    {
+        outFile << columns_[i];
+        if (i != columns_.size() - 1)
+            outFile << ",";
+    }
+    outFile << "\n";
+}

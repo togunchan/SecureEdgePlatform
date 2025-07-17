@@ -97,6 +97,27 @@ public:
      */
     void save() const;
 
+    /**
+     * @brief Clears all row data from memory and resets the persisted file.
+     *
+     * This method removes all in-memory rows and truncates the associated `.tbl` file,
+     * effectively resetting the table while preserving its column schema.
+     *
+     * Behavior:
+     * - `rows_` is cleared, removing all stored data.
+     * - The `.tbl` file is overwritten using `std::ios::trunc`.
+     * - Column headers are re-written to maintain schema consistency.
+     *
+     * Use cases:
+     * - Resetting the table between test runs.
+     * - Clearing temporary or outdated data.
+     * - Reinitializing the table without redefining columns.
+     *
+     * @note Column definitions (`columns_`) remain unchanged.
+     * @throws std::runtime_error if the file cannot be opened for writing.
+     */
+    void clear();
+
 private:
     /**
      * @brief Stores the name of the table.
