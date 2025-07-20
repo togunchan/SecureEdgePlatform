@@ -1,5 +1,13 @@
 {
     "files.associations": {
-        "vector": "cpp"
-    }
+        "vector": "cpp",
+        "__hash_table": "cpp",
+        "__tree": "cpp",
+        "map": "cpp",
+        "set": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "unordered_map": "cpp"
+    },
+    "cmake.sourceDirectory": "/Users/togunchan/Desktop/Projelerim/SecureEdgePlatform/CppMiniDB"
 }

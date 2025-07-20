@@ -1,0 +1,30 @@
+# Build folders
+build/
+CppMiniDB/build/
+third_party/Catch2/build/
+third_party/Catch2/install/
+
+# Object & binary files
+*.o
+*.a
+*.out
+*.so
+*.exe
+
+# macOS system files
+.DS_Store
+
+# VSCode workspace settings
+.vscode/
+CMakeCache.txt
+CMakeFiles/
+
+# Test logs
+Testing/
+Makefile
+CTestTestfile.cmake
+cmake_install.cmake
+
+# Generated files
+*.log
+*.json.tmp
