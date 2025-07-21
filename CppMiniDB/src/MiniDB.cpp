@@ -1,6 +1,8 @@
 #include "../include/cppminidb/MiniDB.hpp"
 #include <fstream>
 #include <sstream>
+#include <iostream>
+#include <filesystem>
 
 MiniDB::MiniDB(const std::string &tableName) : tableName_(tableName) {}
 
@@ -26,11 +28,12 @@ void MiniDB::insertRow(const std::vector<std::string> &values)
 
 std::string MiniDB::getTableFilePath() const
 {
-    return "data/" + tableName_ + ".tbl";
+    return "./data/" + tableName_ + ".tbl";
 }
 
 void MiniDB::save() const
 {
+    std::filesystem::create_directories("data");
     std::ofstream outFile(getTableFilePath(), std::ios::trunc); // overwrite;
     if (!outFile.is_open())
     {
@@ -57,7 +60,7 @@ void MiniDB::save() const
     }
 }
 
-std::vector<std::map<std::string, std::string>> MiniDB::selectAll() const
+std::vector<std::map<std::string, std::string>> MiniDB::loadFromDisk() const
 {
     std::vector<std::map<std::string, std::string>> result;
 
@@ -102,6 +105,26 @@ std::vector<std::map<std::string, std::string>> MiniDB::selectAll() const
             rowMap[fileColumns[i]] = values[i];
         }
 
+        result.push_back(rowMap);
+    }
+
+    return result;
+}
+
+std::vector<std::map<std::string, std::string>> MiniDB::selectAll() const
+{
+    std::vector<std::map<std::string, std::string>> result;
+
+    for (const auto &row : rows_)
+    {
+        if (row.size() != columns_.size())
+            continue;
+
+        std::map<std::string, std::string> rowMap;
+        for (size_t i = 0; i < columns_.size(); ++i)
+        {
+            rowMap[columns_[i]] = row[i];
+        }
         result.push_back(rowMap);
     }
 

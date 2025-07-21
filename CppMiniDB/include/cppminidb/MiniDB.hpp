@@ -87,6 +87,15 @@ public:
      * Useful for displaying or exporting data. It adds semantic clarity by
      * using column names as keys rather than relying on index positions.
      */
+    std::vector<std::map<std::string, std::string>> loadFromDisk() const;
+
+    /**
+     * @brief Retrieves all rows currently stored in memory.
+     * @return A vector of maps, where each map represents a row with column-value pairs.
+     *
+     * Useful for in-memory queries, display, or exporting the current working dataset.
+     * Offers semantic clarity by using column names as keys instead of relying on column indices.
+     */
     std::vector<std::map<std::string, std::string>> selectAll() const;
 
     /**
