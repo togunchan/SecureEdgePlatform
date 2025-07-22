@@ -39,7 +39,7 @@ TEST_CASE("MiniDB selectAll returns structured data", "[MiniDB]")
 
     auto results = db.loadFromDisk();
 
-    std::cout << "Row count: " << db.loadFromDisk().size() << std::endl;
+    // std::cout << "Row count: " << db.loadFromDisk().size() << std::endl;
     REQUIRE(results.size() == 2);
 
     REQUIRE(results[0]["city"] == "Istanbul");
@@ -66,11 +66,65 @@ TEST_CASE("MiniDB save creates file with only headers when no rows exist", "[Min
 
     // Header must match column names
     REQUIRE(headerLine == "sensor_id,value,timestamp");
-    std::cout << headerLine;
 
     // There should be no more lines (no data rows)
     std::string extraLine;
     REQUIRE_FALSE(std::getline(file, extraLine));
 
     file.close();
+}
+
+TEST_CASE("MiniDB throws on empty row insert", "[MiniDB]")
+{
+    MiniDB db("empty_row_table");
+    db.setColumns({"col1", "col2"});
+
+    REQUIRE_THROWS_AS(db.insertRow({}), std::invalid_argument);
+}
+
+TEST_CASE("MiniDB loadFromDisk on non-existent file returns empty", "[MiniDB]")
+{
+    MiniDB db("ghost_table");
+
+    auto result = db.loadFromDisk();
+
+    REQUIRE(result.empty());
+}
+
+TEST_CASE("MiniDB loadFromDisk returns empty if only headers exist", "[MiniDB]")
+{
+    MiniDB db("empty_with_headers");
+    db.setColumns({"col1", "col2", "col3"});
+    db.save();
+
+    auto result = db.loadFromDisk();
+
+    REQUIRE(result.empty());
+}
+
+TEST_CASE("MiniDB handles rows with empty values correctly", "[MiniDB]")
+{
+    MiniDB db("empty_fields_table");
+    db.setColumns({"name", "age", "country"});
+
+    db.insertRow({"Alice", "", "USA"});
+    db.insertRow({"", "25", "Canada"});
+    db.insertRow({"Charlie", "40", ""});
+    db.save();
+
+    auto results = db.loadFromDisk();
+
+    REQUIRE(results.size() == 3);
+
+    REQUIRE(results[0]["name"] == "Alice");
+    REQUIRE(results[0]["age"] == "");
+    REQUIRE(results[0]["country"] == "USA");
+
+    REQUIRE(results[1]["name"] == "");
+    REQUIRE(results[1]["age"] == "25");
+    REQUIRE(results[1]["country"] == "Canada");
+
+    REQUIRE(results[2]["name"] == "Charlie");
+    REQUIRE(results[2]["age"] == "40");
+    REQUIRE(results[2]["country"] == "");
 }

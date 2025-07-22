@@ -50,9 +50,10 @@ void MiniDB::save() const
 
     for (const auto &row : rows_)
     {
-        for (size_t i = 0; i < row.size(); ++i)
+        for (size_t i = 0; i < columns_.size(); ++i)
         {
-            outFile << row[i];
+            if (i < row.size())
+                outFile << row[i];
             if (i != row.size() - 1)
                 outFile << ",";
         }
@@ -67,7 +68,8 @@ std::vector<std::map<std::string, std::string>> MiniDB::loadFromDisk() const
     std::ifstream inFile(getTableFilePath());
     if (!inFile.is_open())
     {
-        std::runtime_error("Failed to open file for reading:" + getTableFilePath());
+        // throw std::runtime_error("Failed to open file for reading:" + getTableFilePath());
+        return {};
     }
 
     std::string line;
@@ -94,9 +96,10 @@ std::vector<std::map<std::string, std::string>> MiniDB::loadFromDisk() const
             values.push_back(value);
         }
 
-        if (values.size() != fileColumns.size())
+        // Pad missing values with empty strings if necessary
+        while (values.size() < fileColumns.size())
         {
-            continue;
+            values.push_back("");
         }
 
         std::map<std::string, std::string> rowMap;
