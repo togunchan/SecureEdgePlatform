@@ -2,6 +2,7 @@
 #include <catch2/catch_all.hpp>
 #include "cppminidb/MiniDB.hpp"
 #include <iostream>
+#include <fstream>
 
 TEST_CASE("MiniDB basic insert and export", "[MiniDB]")
 {
@@ -46,4 +47,30 @@ TEST_CASE("MiniDB selectAll returns structured data", "[MiniDB]")
 
     REQUIRE(results[1]["city"] == "Ankara");
     REQUIRE(results[1]["temperature"] == "25");
+}
+
+TEST_CASE("MiniDB save creates file with only headers when no rows exist", "[MiniDB]")
+{
+    const std::string tableName = "empty_table";
+    MiniDB db(tableName);
+    db.setColumns({"sensor_id", "value", "timestamp"});
+
+    db.save();
+
+    // Open file and read lines
+    std::ifstream file("./data/" + tableName + ".tbl");
+    REQUIRE(file.is_open());
+
+    std::string headerLine;
+    std::getline(file, headerLine);
+
+    // Header must match column names
+    REQUIRE(headerLine == "sensor_id,value,timestamp");
+    std::cout << headerLine;
+
+    // There should be no more lines (no data rows)
+    std::string extraLine;
+    REQUIRE_FALSE(std::getline(file, extraLine));
+
+    file.close();
 }
