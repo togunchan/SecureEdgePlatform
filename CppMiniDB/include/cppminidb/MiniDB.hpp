@@ -189,3 +189,73 @@ private:
      */
     std::string getTableFilePath() const;
 };
+
+/**
+ * @brief Utility class for validating numeric content in strings.
+ *
+ * NumberValidator provides static methods to determine whether a given
+ * string represents a specific numeric format, such as unsigned integers,
+ * signed integers, or floating-point numbers. These checks are designed
+ * for lightweight validation prior to parsing or user input handling.
+ *
+ * All methods focus on ASCII-compatible formats and do not support locale-based
+ * or scientific number representations.
+ */
+
+class NumberValidator
+{
+public:
+    /**
+     * @brief Checks if the input string contains only digit characters (0–9).
+     *
+     * Returns true if all characters in the string are ASCII digits with no
+     * leading signs, decimal points, or other symbols.
+     *
+     * Examples:
+     * - "12345" → true
+     * - "+123" → false
+     * - "12.3" → false
+     * - "abc" → false
+     *
+     * @param str Input string to evaluate.
+     * @return true if all characters are digits, false otherwise.
+     */
+    static bool isPureInteger(const std::string &str);
+
+    /**
+     * @brief Validates whether the string is a properly signed integer.
+     *
+     * Accepts optional '+' or '-' signs at the beginning, followed by
+     * digit characters only. No decimal points or letters are permitted.
+     *
+     * Examples:
+     * - "-42" → true
+     * - "+15" → true
+     * - "007" → true
+     * - "15.0" → false
+     * - "abc" → false
+     *
+     * @param str Input string to check.
+     * @return true if the string is a valid signed integer, false otherwise.
+     */
+    static bool isSignedInteger(const std::string &str);
+
+    /**
+     * @brief Determines whether the input string represents a valid floating-point number.
+     *
+     * Accepts standard decimal formats with optional signs and a single decimal point.
+     * Scientific notation, locale-specific separators, and malformed formats are rejected.
+     *
+     * Examples:
+     * - "3.14" → true
+     * - "-0.001" → true
+     * - "+2.0" → true
+     * - "42" → true
+     * - "3.14.15" → false
+     * - "1e10" → false
+     *
+     * @param str Input string to validate.
+     * @return true if the string is a valid floating-point number, false otherwise.
+     */
+    static bool isFloatingPoint(const std::string &str);
+};

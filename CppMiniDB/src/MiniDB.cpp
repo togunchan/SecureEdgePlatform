@@ -182,3 +182,69 @@ std::string MiniDB::exportToJson() const
 
     return oss.str();
 }
+
+bool NumberValidator::isPureInteger(const std::string &str)
+{
+    if (str.empty())
+        return false;
+
+    for (char c : str)
+    {
+        if (!std::isdigit(c))
+            return false;
+    }
+
+    return true;
+}
+
+bool NumberValidator::isSignedInteger(const std::string &str)
+{
+    if (str.empty())
+        return false;
+
+    if (str[0] != '+' && str[0] != '-' && !std::isdigit(str[0]))
+        return false;
+
+    for (size_t i = 1; i < str.length(); ++i)
+    {
+        if (!std::isdigit(str[i]))
+            return false;
+    }
+
+    return true;
+}
+
+bool NumberValidator::isFloatingPoint(const std::string &str)
+{
+    if (str.empty())
+        return false;
+
+    if (str[0] != '+' && str[0] != '-' && !std::isdigit(str[0]))
+        return false;
+
+    bool hasDecimalPoint = false;
+    bool digitFound = false;
+
+    for (size_t i = (str[0] == '+' || str[0] == '-') ? 1 : 0; i < str.length(); ++i)
+    {
+        if (!std::isdigit(str[i]) && str[i] != '.')
+            return false;
+
+        char c = str[i];
+
+        if (std::isdigit(c))
+        {
+            digitFound = true;
+        }
+        else if (c == '.' && !hasDecimalPoint)
+        {
+            hasDecimalPoint = true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    return digitFound;
+}
