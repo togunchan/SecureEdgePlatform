@@ -161,6 +161,51 @@ public:
      */
     std::string exportToJson() const;
 
+    /**
+     * @brief Executes a filter query on in-memory rows.
+     *
+     * Iterates over all stored rows in memory, applies the filter based on the target column,
+     * comparison operator, and value, then returns the matching rows as maps from column name to cell value.
+     *
+     * @param column  Name of the column to filter on (e.g., "age")
+     * @param op      Comparison operator as string (e.g., ">", "<", "==")
+     * @param value   Target value for comparison (e.g., "20")
+     * @return        A list of rows (as maps) that satisfy the condition
+     */
+    std::vector<std::map<std::string, std::string>> selectWhereFromMemory(
+        const std::string &column,
+        const std::string &op,
+        const std::string &value) const;
+
+    /**
+     * @brief Executes a filter query on rows loaded from disk.
+     *
+     * Reads rows from disk (not memory), evaluates each one against the filter criteria,
+     * and returns those that match the condition. Useful when data is stored externally.
+     *
+     * @param column  Column name to apply the filter on
+     * @param op      Comparison operator (e.g., "==", ">", "<")
+     * @param value   Comparison value used in the filter
+     * @return        A vector of matching rows represented as key-value maps
+     */
+    std::vector<std::map<std::string, std::string>> selectWhereFromDisk(
+        const std::string &column,
+        const std::string &op,
+        const std::string &value) const;
+
+    /**
+     * @brief Compares two integers using a given operator string.
+     *
+     * Evaluates the comparison between `a` and `b` based on the specified operator.
+     * Supports common relational operators like ">", "<", "==", "!=".
+     *
+     * @param a    Left-hand side operand (row value)
+     * @param op   Comparison operator as string
+     * @param b    Right-hand side operand (target value)
+     * @return     True if the comparison is valid, false otherwise
+     */
+    bool compare(int a, const std::string &op, int b) const;
+
 private:
     /**
      * @brief Stores the name of the table.

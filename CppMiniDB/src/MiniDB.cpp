@@ -183,6 +183,67 @@ std::string MiniDB::exportToJson() const
     return oss.str();
 }
 
+bool MiniDB::compare(int a, const std::string &op, int b) const
+{
+    if (op == "==")
+        return a == b;
+    if (op == "!=")
+        return a != b;
+    if (op == ">")
+        return a > b;
+    if (op == ">=")
+        return a >= b;
+    if (op == "<")
+        return a < b;
+    if (op == "<=")
+        return a <= b;
+
+    throw std::invalid_argument("Unsupported comparison operator: " + op);
+}
+
+std::vector<std::map<std::string, std::string>> MiniDB::selectWhereFromMemory(
+    const std::string &column,
+    const std::string &op,
+    const std::string &value) const
+{
+
+    std::vector<std::map<std::string, std::string>> result;
+
+    bool columnExists = std::find(columns_.begin(), columns_.end(), column) != columns_.end();
+    if (!columnExists)
+        throw std::invalid_argument("Column not found: " + column);
+
+    if (!NumberValidator::isPureInteger(value))
+        throw std::invalid_argument("Value must be an integer.");
+
+    auto it = std::find(columns_.begin(), columns_.end(), column);
+    size_t colIndex = std::distance(columns_.begin(), it);
+
+    for (const auto &row : rows_)
+    {
+        if (columns_.size() != row.size())
+            continue;
+
+        const std::string &candidate = row[colIndex];
+        if (!NumberValidator::isPureInteger(candidate))
+            continue;
+
+        int rowValue = std::stoi(row[colIndex]);
+        int targetValue = std::stoi(value);
+
+        if (MiniDB::compare(rowValue, op, targetValue))
+        {
+            std::map<std::string, std::string> rowMap;
+            for (size_t i = 0; i < columns_.size(); ++i)
+            {
+                rowMap[columns_[i]] = row[i];
+            }
+            result.push_back(rowMap);
+        }
+    }
+    return result;
+}
+
 bool NumberValidator::isPureInteger(const std::string &str)
 {
     if (str.empty())
