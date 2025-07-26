@@ -198,7 +198,17 @@ bool MiniDB::compare(int a, const std::string &op, int b) const
     if (op == "<=")
         return a <= b;
 
-    throw std::invalid_argument("Unsupported comparison operator: " + op);
+    throw std::invalid_argument("Unsupported operator for integer: " + op);
+}
+
+bool MiniDB::compare(int a, const std::string &op, int b) const
+{
+    if (op == "==")
+        return a == b;
+    if (op == "!=")
+        return a != b;
+
+    throw std::invalid_argument("Unsupported operator for string comparison: " + op);
 }
 
 std::vector<std::map<std::string, std::string>> MiniDB::selectWhereFromMemory(
@@ -224,21 +234,37 @@ std::vector<std::map<std::string, std::string>> MiniDB::selectWhereFromMemory(
         if (columns_.size() != row.size())
             continue;
 
-        const std::string &candidate = row[colIndex];
-        if (!NumberValidator::isPureInteger(candidate))
-            continue;
-
-        int rowValue = std::stoi(row[colIndex]);
-        int targetValue = std::stoi(value);
-
-        if (MiniDB::compare(rowValue, op, targetValue))
+        const std::string &cell = row[colIndex];
+        if (NumberValidator::isPureInteger(cell) && NumberValidator::isPureInteger(value))
         {
-            std::map<std::string, std::string> rowMap;
-            for (size_t i = 0; i < columns_.size(); ++i)
+            int rowValue = std::stoi(row[colIndex]);
+            int targetValue = std::stoi(value);
+
+            if (MiniDB::compare(rowValue, op, targetValue))
             {
-                rowMap[columns_[i]] = row[i];
+                std::map<std::string, std::string> rowMap;
+                for (size_t i = 0; i < columns_.size(); ++i)
+                {
+                    rowMap[columns_[i]] = row[i];
+                }
+                result.push_back(rowMap);
             }
-            result.push_back(rowMap);
+        }
+        else if (op == "=" && op == "!=")
+        {
+            if (MiniDB::compare(cell, op, value))
+            {
+                std::map<std::string, std::string> rowMap;
+                for (size_t i = 0; i < columns_.size(); ++i)
+                {
+                    rowMap[columns_[i]] = row[i];
+                }
+                result.push_back(rowMap);
+            }
+        }
+        else
+        {
+            continue;
         }
     }
     return result;

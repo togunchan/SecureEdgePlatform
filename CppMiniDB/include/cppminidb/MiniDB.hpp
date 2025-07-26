@@ -205,6 +205,7 @@ public:
      * @return     True if the comparison is valid, false otherwise
      */
     bool compare(int a, const std::string &op, int b) const;
+    bool compare(std::string a, const std::string &op, std::string b) const;
 
 private:
     /**
@@ -246,7 +247,6 @@ private:
  * All methods focus on ASCII-compatible formats and do not support locale-based
  * or scientific number representations.
  */
-
 class NumberValidator
 {
 public:
