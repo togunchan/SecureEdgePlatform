@@ -216,7 +216,6 @@ std::vector<std::map<std::string, std::string>> MiniDB::selectWhereFromMemory(
     const std::string &op,
     const std::string &value) const
 {
-
     std::vector<std::map<std::string, std::string>> result;
 
     bool columnExists = std::find(columns_.begin(), columns_.end(), column) != columns_.end();
@@ -265,6 +264,86 @@ std::vector<std::map<std::string, std::string>> MiniDB::selectWhereFromMemory(
         else
         {
             continue;
+        }
+    }
+    return result;
+}
+
+std::vector<std::map<std::string, std::string>> MiniDB::selectWhereFromDisk(
+    const std::string &column,
+    const std::string &op,
+    const std::string &value) const
+{
+    std::vector<std::map<std::string, std::string>> result;
+
+    std::ifstream inFile(getTableFilePath());
+    if (!inFile.is_open())
+    {
+        throw std::runtime_error("Failed to open file for reading.");
+    }
+
+    std::string line;
+
+    // read column headers
+    std::getline(inFile, line);
+    std::vector<std::string> fileColumns;
+    std::stringstream headerStream(line);
+    std::string header;
+    while (std::getline(headerStream, header, ','))
+    {
+        fileColumns.push_back(header);
+    }
+
+    // read data rows
+    while (std::getline(inFile, line))
+    {
+        std::vector<std::string> values;
+        std::stringstream rowStream(line);
+        std::string cell;
+
+        while (std::getline(rowStream, cell, ','))
+        {
+            values.push_back(cell);
+        }
+
+        // Pad missing values with empty strings if necessary
+        while (values.size() < fileColumns.size())
+        {
+            values.push_back("");
+        }
+
+        auto it = std::find(fileColumns.begin(), fileColumns.end(), column);
+        if (it != fileColumns.end())
+        {
+            size_t colIndex = std::distance(fileColumns.begin(), it);
+
+            if (NumberValidator::isPureInteger(values[colIndex]) && NumberValidator::isPureInteger(value))
+            {
+                int rowValue = std::stoi(values[colIndex]);
+                int targetValue = std::stoi(value);
+
+                if (MiniDB::compare(rowValue, op, targetValue))
+                {
+                    std::map<std::string, std::string> rowMap;
+                    for (size_t i = 0; i < fileColumns.size(); ++i)
+                    {
+                        rowMap[fileColumns[i]] = values[i];
+                    }
+                    result.push_back(rowMap);
+                }
+            }
+            else if (op == "=" || op == "!=")
+            {
+                if (MiniDB::compare(values[colIndex], op, value))
+                {
+                    std::map<std::string, std::string> rowMap;
+                    for (size_t i = 0; i < fileColumns.size(); ++i)
+                    {
+                        rowMap[fileColumns[i]] = values[i];
+                    }
+                    result.push_back(rowMap);
+                }
+            }
         }
     }
     return result;
