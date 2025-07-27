@@ -207,6 +207,25 @@ public:
     bool compare(int a, const std::string &op, int b) const;
     bool compare(std::string a, const std::string &op, std::string b) const;
 
+    /**
+     * @brief Filters in-memory rows based on a conditional expression and updates matching entries.
+     *
+     * This function operates on MiniDB's in-memory data. It filters rows by applying the given
+     * comparison operator (`op`) to the specified `column` and reference `value`. For rows that
+     * match the condition, it applies updates using the key-value pairs in `updateMap`.
+     *
+     * @param column The name of the column to apply the condition on.
+     * @param op The comparison operator to use. Examples: "==", "!=", "<", ">", "<=", ">=".
+     * @param value The reference value to compare against.
+     * @param updateMap A map specifying which columns to update and their new values.
+     *
+     * @note This operation only affects in-memory data and does not persist changes to disk.
+     */
+    void updateWhereFromMemory(const std::string &column,
+                               const std::string &op,
+                               const std::string &value,
+                               const std::map<std::string, std::string> &updateMap);
+
 private:
     /**
      * @brief Stores the name of the table.

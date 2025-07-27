@@ -201,7 +201,7 @@ bool MiniDB::compare(int a, const std::string &op, int b) const
     throw std::invalid_argument("Unsupported operator for integer: " + op);
 }
 
-bool MiniDB::compare(int a, const std::string &op, int b) const
+bool MiniDB::compare(std::string a, const std::string &op, std::string b) const
 {
     if (op == "==")
         return a == b;
@@ -221,9 +221,6 @@ std::vector<std::map<std::string, std::string>> MiniDB::selectWhereFromMemory(
     bool columnExists = std::find(columns_.begin(), columns_.end(), column) != columns_.end();
     if (!columnExists)
         throw std::invalid_argument("Column not found: " + column);
-
-    if (!NumberValidator::isPureInteger(value))
-        throw std::invalid_argument("Value must be an integer.");
 
     auto it = std::find(columns_.begin(), columns_.end(), column);
     size_t colIndex = std::distance(columns_.begin(), it);
@@ -347,6 +344,73 @@ std::vector<std::map<std::string, std::string>> MiniDB::selectWhereFromDisk(
         }
     }
     return result;
+}
+
+void MiniDB::updateWhereFromMemory(const std::string &column,
+                                   const std::string &op,
+                                   const std::string &value,
+                                   const std::map<std::string, std::string> &updateMap)
+{
+
+    // Check if the target column exists
+    if (std::find(columns_.begin(), columns_.end(), column) == columns_.end())
+    {
+        throw std::invalid_argument("Target column not found: " + column);
+    }
+
+    // Check if update keys exist in columns
+    for (const auto &[key, _] : updateMap)
+    {
+        if (std::find(columns_.begin(), columns_.end(), key) == columns_.end())
+        {
+            throw std::invalid_argument("Update column not found: " + key);
+        }
+    }
+
+    auto it = std::find(columns_.begin(), columns_.end(), column);
+    size_t colIndex = std::distance(columns_.begin(), it);
+
+    for (auto &row : rows_)
+    {
+        if (row.size() != columns_.size())
+        {
+            continue;
+        }
+
+        const std::string &cell = row[colIndex];
+
+        if (NumberValidator::isPureInteger(cell) && NumberValidator::isPureInteger(value))
+        {
+            int rowValue = std::stoi(cell);
+            int targetValue = std::stoi(value);
+
+            if (!MiniDB::compare(rowValue, op, targetValue))
+            {
+                continue;
+            }
+        }
+        else if (op == "=" || op == "!=")
+        {
+            if (!MiniDB::compare(cell, op, value))
+            {
+                continue;
+            }
+        }
+        else
+        {
+            continue;
+        }
+
+        for (const auto &[key, newValue] : updateMap)
+        {
+            auto updateIt = std::find(columns_.begin(), columns_.end(), key);
+            if (updateIt != columns_.end())
+            {
+                size_t updateIndex = std::distance(columns_.begin(), updateIt);
+                row[updateIndex] = newValue;
+            }
+        }
+    }
 }
 
 bool NumberValidator::isPureInteger(const std::string &str)
