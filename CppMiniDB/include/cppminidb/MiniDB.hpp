@@ -226,6 +226,27 @@ public:
                                const std::string &value,
                                const std::map<std::string, std::string> &updateMap);
 
+    /**
+     * @brief Filters on-disk rows based on a conditional expression and applies updates to matching entries.
+     *
+     * This function operates on MiniDB's persistent storage layer. It reads rows from disk,
+     * evaluates each row by applying the comparison operator (`op`) to the specified `column`
+     * and reference `value`, and performs updates on matching rows according to the key-value
+     * pairs provided in `updateMap`.
+     *
+     * @param column The name of the column to apply the condition on.
+     * @param op The comparison operator to use. Examples include "==", "!=", "<", ">", "<=", ">=".
+     * @param value The reference value to compare against.
+     * @param updateMap A map specifying which columns to update and their corresponding new values.
+     *
+     * @note This operation directly modifies the persistent data on disk. It is essential to ensure
+     *       data integrity and consistency during this process.
+     */
+    void updateWhereFromDisk(const std::string &column,
+                             const std::string &op,
+                             const std::string &value,
+                             const std::map<std::string, std::string> &updateMap);
+
 private:
     /**
      * @brief Stores the name of the table.
@@ -253,6 +274,7 @@ private:
      * Typically combines the table name with a folder prefix like `data/` and a `.tbl` suffix.
      */
     std::string getTableFilePath() const;
+    std::string getTempFilePath() const;
 };
 
 /**

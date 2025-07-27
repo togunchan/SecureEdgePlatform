@@ -31,6 +31,11 @@ std::string MiniDB::getTableFilePath() const
     return "./data/" + tableName_ + ".tbl";
 }
 
+std::string MiniDB::getTempFilePath() const
+{
+    return "./data/" + tableName_ + "_temp.tbl";
+}
+
 void MiniDB::save() const
 {
     std::filesystem::create_directories("data");
@@ -411,6 +416,103 @@ void MiniDB::updateWhereFromMemory(const std::string &column,
             }
         }
     }
+}
+
+void MiniDB::updateWhereFromDisk(const std::string &column,
+                                 const std::string &op,
+                                 const std::string &value,
+                                 const std::map<std::string, std::string> &updateMap)
+{
+    std::ifstream inFile(getTableFilePath());
+    if (!inFile.is_open())
+    {
+        throw std::runtime_error("Failed to open file for reading.");
+    }
+
+    std::string line;
+
+    // read column headers
+    std::getline(inFile, line);
+    std::vector<std::string> fileColumns;
+    std::stringstream headerStream(line);
+    std::string header;
+    while (std::getline(headerStream, header, ','))
+    {
+        fileColumns.push_back(header);
+    }
+
+    // open temp file
+    std::ofstream outFile(getTempFilePath());
+    if (!outFile.is_open())
+    {
+        throw std::runtime_error("Failed to open temporary file for writing.");
+    }
+
+    // write headers to temp file
+    outFile << line << "\n";
+
+    size_t colIndex = std::distance(fileColumns.begin(), std::find(fileColumns.begin(), fileColumns.end(), column));
+
+    while (std::getline(inFile, line))
+    {
+        std::vector<std::string> values;
+        std::stringstream rowStream(line);
+        std::string cell;
+
+        while (std::getline(rowStream, cell, ','))
+        {
+            values.push_back(cell);
+        }
+
+        while (values.size() < fileColumns.size())
+        {
+            values.push_back("");
+        }
+
+        const std::string &cellValue = values[colIndex];
+
+        if (NumberValidator::isPureInteger(cellValue) && NumberValidator::isPureInteger(value))
+        {
+            int rowValue = std::stoi(cellValue);
+            int targetValue = std::stoi(value);
+
+            if (!MiniDB::compare(rowValue, op, targetValue))
+            {
+                continue;
+            }
+        }
+        else if (op == "=" || op == "!=")
+        {
+            if (!MiniDB::compare(cellValue, op, value))
+            {
+                continue;
+            }
+        }
+        else
+        {
+            continue;
+        }
+
+        for (const auto &[key, newValue] : updateMap)
+        {
+            auto updateIt = std::find(fileColumns.begin(), fileColumns.end(), key);
+            if (updateIt != fileColumns.end())
+            {
+                size_t updateIndex = std::distance(fileColumns.begin(), updateIt);
+                values[updateIndex] = newValue;
+            }
+        }
+        for (size_t i = 0; i < values.size(); ++i)
+        {
+            outFile << values[i];
+            if (i != values.size() - 1)
+                outFile << ",";
+        }
+        outFile << "\n";
+    }
+    inFile.close();
+    outFile.close();
+    std::filesystem::rename(getTempFilePath(), getTableFilePath());
 }
 
 bool NumberValidator::isPureInteger(const std::string &str)
