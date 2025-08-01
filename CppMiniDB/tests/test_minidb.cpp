@@ -166,3 +166,36 @@ TEST_CASE("MiniDB updates rows in disk correctly", "[update][disk]")
     REQUIRE(results[1]["Name"] == "Bob");
     REQUIRE(results[2]["Name"] == "Updated");
 }
+
+TEST_CASE("MiniDB selects rows from memory using conditions", "[select][memory]")
+{
+    MiniDB db("test_memory_select");
+    db.setColumns({"Name", "Age"});
+
+    db.insertRow({"Alice", "30"});
+    db.insertRow({"Bob", "25"});
+    db.insertRow({"Charlie", "30"});
+
+    auto results = db.selectWhereFromMemory("Age", "==", "30");
+
+    REQUIRE(results.size() == 2);
+    REQUIRE(results[0]["Name"] == "Alice");
+    REQUIRE(results[1]["Name"] == "Charlie");
+}
+
+TEST_CASE("MiniDB selects rows from disk using conditions", "[select][disk]")
+{
+    MiniDB db("test_disk_select");
+    db.setColumns({"Name", "Age"});
+
+    db.insertRow({"Alice", "30"});
+    db.insertRow({"Bob", "25"});
+    db.insertRow({"Charlie", "30"});
+    db.save();
+
+    auto results = db.selectWhereFromDisk("Age", "==", "30");
+
+    REQUIRE(results.size() == 2);
+    REQUIRE(results[0]["Name"] == "Alice");
+    REQUIRE(results[1]["Name"] == "Charlie");
+}
