@@ -513,6 +513,46 @@ void MiniDB::updateWhereFromDisk(const std::string &column,
     std::filesystem::rename(getTempFilePath(), getTableFilePath());
 }
 
+void MiniDB::deleteWhereFromMemory(const std::string &column,
+                                   const std::string &op,
+                                   const std::string &value)
+{
+    if (std::find(columns_.begin(), columns_.end(), column) == columns_.end())
+    {
+        throw std::invalid_argument("Target column not found: " + column);
+    }
+
+    auto colIndex = std::distance(columns_.begin(), std::find(columns_.begin(), columns_.end(), column));
+
+    auto filteredRows = std::remove_if(
+        rows_.begin(), rows_.end(),
+        [colIndex, op, value, this](const std::vector<std::string> &row)
+        {
+            if (row.size() != columns_.size())
+                return false;
+
+            const std::string &cell = row[colIndex];
+
+            if (NumberValidator::isPureInteger(cell) && NumberValidator::isPureInteger(value))
+            {
+                int rowVal = std::stoi(cell);
+                int cmpVal = std::stoi(value);
+
+                return MiniDB::compare(rowVal, op, cmpVal);
+            }
+            else if (op == "=" || op == "!=")
+            {
+                return MiniDB::compare(cell, op, value);
+            }
+            else
+            {
+                return false;
+            }
+        });
+
+    rows_.erase(filteredRows, rows_.end());
+}
+
 bool NumberValidator::isPureInteger(const std::string &str)
 {
     if (str.empty())

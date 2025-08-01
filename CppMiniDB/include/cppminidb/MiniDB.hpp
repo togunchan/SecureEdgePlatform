@@ -275,6 +275,43 @@ private:
      */
     std::string getTableFilePath() const;
     std::string getTempFilePath() const;
+
+    /**
+     * @brief Filters in-memory rows based on a conditional expression and deletes matching entries.
+     *
+     * This function operates on MiniDB's in-memory data. It scans each row and applies the given
+     * comparison operator (`op`) to the specified `column` and reference `value`. If a row satisfies
+     * the condition, it is removed from memory.
+     *
+     * @param column The name of the column to apply the condition on.
+     * @param op The comparison operator to use. Examples: "==", "!=", "<", ">", "<=", ">=".
+     * @param value The reference value to compare against.
+     *
+     * @note This operation only affects in-memory data and does not persist changes to disk.
+     *       Deleted rows are permanently removed from the current session's memory state.
+     */
+    void deleteWhereFromMemory(const std::string &column,
+                               const std::string &op,
+                               const std::string &value);
+
+    /**
+     * @brief Filters on-disk rows based on a conditional expression and deletes matching entries.
+     *
+     * This function operates on MiniDB's persistent storage layer. It reads rows from disk,
+     * evaluates each row by applying the comparison operator (`op`) to the specified `column`
+     * and reference `value`, and removes rows that satisfy the condition.
+     *
+     * @param column The name of the column to apply the condition on.
+     * @param op The comparison operator to use. Examples include "==", "!=", "<", ">", "<=", ">=".
+     * @param value The reference value to compare against.
+     *
+     * @note This operation directly modifies the persistent data on disk. Deleted rows are
+     *       permanently removed from storage, so it is critical to ensure correctness and
+     *       consistency before performing this action.
+     */
+    void deleteWhereFromDisk(const std::string &column,
+                             const std::string &op,
+                             const std::string &value);
 };
 
 /**
