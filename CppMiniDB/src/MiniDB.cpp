@@ -470,38 +470,36 @@ void MiniDB::updateWhereFromDisk(const std::string &column,
         }
 
         const std::string &cellValue = values[colIndex];
+        bool shouldUpdate = false;
 
         if (NumberValidator::isPureInteger(cellValue) && NumberValidator::isPureInteger(value))
         {
             int rowValue = std::stoi(cellValue);
             int targetValue = std::stoi(value);
 
-            if (!MiniDB::compare(rowValue, op, targetValue))
-            {
-                continue;
-            }
+            shouldUpdate = MiniDB::compare(rowValue, op, targetValue);
         }
         else if (op == "=" || op == "!=")
         {
-            if (!MiniDB::compare(cellValue, op, value))
-            {
-                continue;
-            }
+            shouldUpdate = MiniDB::compare(cellValue, op, value);
         }
         else
         {
             continue;
         }
-
-        for (const auto &[key, newValue] : updateMap)
+        if (shouldUpdate)
         {
-            auto updateIt = std::find(fileColumns.begin(), fileColumns.end(), key);
-            if (updateIt != fileColumns.end())
+            for (const auto &[key, newValue] : updateMap)
             {
-                size_t updateIndex = std::distance(fileColumns.begin(), updateIt);
-                values[updateIndex] = newValue;
+                auto updateIt = std::find(fileColumns.begin(), fileColumns.end(), key);
+                if (updateIt != fileColumns.end())
+                {
+                    size_t updateIndex = std::distance(fileColumns.begin(), updateIt);
+                    values[updateIndex] = newValue;
+                }
             }
         }
+
         for (size_t i = 0; i < values.size(); ++i)
         {
             outFile << values[i];

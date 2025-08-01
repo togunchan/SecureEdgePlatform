@@ -128,3 +128,41 @@ TEST_CASE("MiniDB handles rows with empty values correctly", "[MiniDB]")
     REQUIRE(results[2]["age"] == "40");
     REQUIRE(results[2]["country"] == "");
 }
+
+TEST_CASE("MiniDB updates rows in memory correctly", "[update][memory]")
+{
+    MiniDB db("update_memory_table");
+    db.setColumns({"Name", "Age"});
+
+    db.insertRow({"Alice", "30"});
+    db.insertRow({"Bob", "25"});
+    db.insertRow({"Charlie", "30"});
+
+    db.updateWhereFromMemory("Age", "==", "30", {{"Name", "Updated"}});
+
+    auto results = db.selectAll();
+
+    REQUIRE(results[0]["Name"] == "Updated");
+    REQUIRE(results[1]["Name"] == "Bob");
+    REQUIRE(results[2]["Name"] == "Updated");
+}
+
+TEST_CASE("MiniDB updates rows in disk correctly", "[update][disk]")
+{
+    MiniDB db("update_disk_table");
+    db.setColumns({"Name", "Age"});
+
+    db.insertRow({"Alice", "30"});
+    db.insertRow({"Bob", "25"});
+    db.insertRow({"John", "30"});
+    db.insertRow({"Charlie", "30"});
+    db.save();
+
+    db.updateWhereFromDisk("Age", "==", "30", {{"Name", "Updated"}});
+
+    auto results = db.loadFromDisk();
+
+    REQUIRE(results[0]["Name"] == "Updated");
+    REQUIRE(results[1]["Name"] == "Bob");
+    REQUIRE(results[2]["Name"] == "Updated");
+}
