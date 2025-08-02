@@ -553,6 +553,91 @@ void MiniDB::deleteWhereFromMemory(const std::string &column,
     rows_.erase(filteredRows, rows_.end());
 }
 
+void MiniDB::deleteWhereFromDisk(const std::string &column,
+                                 const std::string &op,
+                                 const std::string &value)
+{
+    std::ifstream inFile(getTableFilePath());
+    if (!inFile.is_open())
+        throw std::runtime_error("Failed to open file for reading.");
+
+    std::ofstream outFile(getTempFilePath());
+    if (!outFile.is_open())
+        throw std::runtime_error("Failed to open temporary file for writing.");
+
+    // read header
+    std::string line;
+    std::getline(inFile, line);
+    outFile << line << "\n";
+
+    // tokenize header
+    std::vector<std::string> fileColumns;
+    std::stringstream headerStream(line);
+    std::string header;
+    while (std::getline(headerStream, header, ','))
+    {
+        fileColumns.push_back(header);
+    }
+
+    // find the index of the target column
+    auto it = std::find(fileColumns.begin(), fileColumns.end(), column);
+    if (it == fileColumns.end())
+        throw std::invalid_argument("Target column not found: " + column);
+
+    auto colIndex = std::distance(fileColumns.begin(), it);
+    while (std::getline(inFile, line))
+    {
+        std::vector<std::string> rowValues;
+        std::stringstream rowStream(line);
+        std::string cell;
+
+        // tokenize each row
+        while (std::getline(rowStream, cell, ','))
+        {
+            rowValues.push_back(cell);
+        }
+
+        // padding if row is shorter than header
+        while (rowValues.size() < fileColumns.size())
+        {
+            rowValues.push_back("");
+        }
+
+        const std::string &cellValue = rowValues[colIndex];
+        bool shouldDelete = false;
+
+        if (NumberValidator::isPureInteger(cellValue) && NumberValidator::isPureInteger(value))
+        {
+            int rowVal = std::stoi(cellValue);
+            int cmpVal = std::stoi(value);
+
+            shouldDelete = MiniDB::compare(rowVal, op, cmpVal);
+        }
+        else if (op == "=" || op == "!=")
+        {
+            shouldDelete = MiniDB::compare(cellValue, op, value);
+        }
+        else
+        {
+            shouldDelete = false;
+        }
+
+        if (!shouldDelete)
+        {
+            for (size_t i = 0; i < rowValues.size(); ++i)
+            {
+                outFile << rowValues[i];
+                if (i != rowValues.size() - 1)
+                    outFile << ",";
+            }
+            outFile << "\n";
+        }
+    }
+    inFile.close();
+    outFile.close();
+    std::filesystem::rename(getTempFilePath(), getTableFilePath());
+}
+
 bool NumberValidator::isPureInteger(const std::string &str)
 {
     if (str.empty())
