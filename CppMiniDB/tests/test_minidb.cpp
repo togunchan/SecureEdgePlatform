@@ -199,3 +199,55 @@ TEST_CASE("MiniDB selects rows from disk using conditions", "[select][disk]")
     REQUIRE(results[0]["Name"] == "Alice");
     REQUIRE(results[1]["Name"] == "Charlie");
 }
+
+TEST_CASE("MiniDB deletes rows from memory correctly", "[delete][memory]")
+{
+    MiniDB db("delete_memory_table");
+    db.setColumns({"Name", "Age"});
+    db.insertRow({"Alice", "30"});
+    db.insertRow({"Bob", "25"});
+    db.insertRow({"Charlie", "30"});
+    db.insertRow({"David", "40"});
+
+    db.deleteWhereFromMemory("Age", "==", "30");
+
+    auto results = db.selectAll();
+
+    REQUIRE(results.size() == 2);
+    REQUIRE(results[0]["Name"] == "Bob");
+    REQUIRE(results[1]["Name"] == "David");
+}
+
+TEST_CASE("MiniDB does not delete when no condition matches", "[delete][memory]")
+{
+    MiniDB db("no_match_delete_test");
+    db.setColumns({"Name", "Age"});
+
+    db.insertRow({"Alice", "30"});
+    db.insertRow({"Bob", "25"});
+
+    db.deleteWhereFromMemory("Age", "==", "100");
+
+    auto results = db.selectAll();
+    REQUIRE(results.size() == 2);
+}
+
+TEST_CASE("MiniDB deletes rows from disk correctly", "[delete][disk]")
+{
+    MiniDB db("delete_disk_table");
+    db.setColumns({"Name", "Age"});
+
+    db.insertRow({"Alice", "30"});
+    db.insertRow({"Bob", "25"});
+    db.insertRow({"Charlie", "30"});
+    db.insertRow({"David", "40"});
+    db.save();
+
+    db.deleteWhereFromDisk("Age", "==", "30");
+
+    auto results = db.loadFromDisk();
+
+    REQUIRE(results.size() == 2);
+    REQUIRE(results[0]["Name"] == "Bob");
+    REQUIRE(results[1]["Name"] == "David");
+}

@@ -247,35 +247,6 @@ public:
                              const std::string &value,
                              const std::map<std::string, std::string> &updateMap);
 
-private:
-    /**
-     * @brief Stores the name of the table.
-     *
-     * Used both for identification and as the file name for persistence.
-     */
-    std::string tableName_;
-
-    /**
-     * @brief List of column names used to define the table schema.
-     */
-    std::vector<std::string> columns_;
-
-    /**
-     * @brief Two-dimensional container for all table rows.
-     *
-     * Each row is represented as a vector of strings aligned with the column order.
-     */
-    std::vector<std::vector<std::string>> rows_;
-
-    /**
-     * @brief Constructs and returns the full file path for saving the table.
-     * @return String containing the relative or absolute path to the table file.
-     *
-     * Typically combines the table name with a folder prefix like `data/` and a `.tbl` suffix.
-     */
-    std::string getTableFilePath() const;
-    std::string getTempFilePath() const;
-
     /**
      * @brief Filters in-memory rows based on a conditional expression and deletes matching entries.
      *
@@ -312,6 +283,35 @@ private:
     void deleteWhereFromDisk(const std::string &column,
                              const std::string &op,
                              const std::string &value);
+
+private:
+    /**
+     * @brief Stores the name of the table.
+     *
+     * Used both for identification and as the file name for persistence.
+     */
+    std::string tableName_;
+
+    /**
+     * @brief List of column names used to define the table schema.
+     */
+    std::vector<std::string> columns_;
+
+    /**
+     * @brief Two-dimensional container for all table rows.
+     *
+     * Each row is represented as a vector of strings aligned with the column order.
+     */
+    std::vector<std::vector<std::string>> rows_;
+
+    /**
+     * @brief Constructs and returns the full file path for saving the table.
+     * @return String containing the relative or absolute path to the table file.
+     *
+     * Typically combines the table name with a folder prefix like `data/` and a `.tbl` suffix.
+     */
+    std::string getTableFilePath() const;
+    std::string getTempFilePath() const;
 };
 
 /**
