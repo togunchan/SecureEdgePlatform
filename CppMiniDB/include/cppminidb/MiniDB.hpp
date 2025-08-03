@@ -310,6 +310,33 @@ public:
     std::string exportToJson() const;
     std::string exportToJsonFromDisk() const;
 
+    /**
+     * @brief Imports table data from a JSON-formatted string into memory.
+     *
+     * This function parses the input JSON string and populates the in-memory table
+     * with the resulting rows. The input must be a JSON array of objects, where
+     * each object represents a row, and each key corresponds to a column name.
+     *
+     * If no columns are previously defined in the MiniDB instance, the columns will be
+     * inferred from the first JSON object. If columns already exist, the input JSON
+     * must match the existing schema; otherwise, an exception is thrown.
+     *
+     * @param jsonString A JSON-formatted string representing an array of row objects.
+     *
+     * @throws std::invalid_argument If the JSON is invalid, not an array, or mismatched schema.
+     *
+     * @example
+     * Input:
+     * [
+     *   { "id": "1", "name": "Alice" },
+     *   { "id": "2", "name": "Bob" }
+     * ]
+     *
+     * After calling this function, MiniDB will contain two rows:
+     * ["1", "Alice"], ["2", "Bob"]
+     */
+    void importFromJson(const std::string &jsonString);
+
 private:
     /**
      * @brief Stores the name of the table.

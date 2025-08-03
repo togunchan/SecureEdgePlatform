@@ -4,6 +4,7 @@
 #include <iostream>
 #include <filesystem>
 #include <nlohmann/json.hpp>
+#include <set>
 
 MiniDB::MiniDB(const std::string &tableName) : tableName_(tableName) {}
 
@@ -706,6 +707,63 @@ std::string MiniDB::exportToJsonFromDisk() const
     }
 
     return jsonArray.dump(4);
+}
+
+void MiniDB::importFromJson(const std::string &jsonString)
+{
+    nlohmann::json parsed;
+    try
+    {
+        parsed = nlohmann::json::parse(jsonString);
+    }
+    catch (const nlohmann::json::parse_error &e)
+    {
+        throw std::runtime_error("Invalid JSON format: " + std::string(e.what()));
+    }
+
+    if (!parsed.is_array())
+    {
+        throw std::runtime_error("JSON must be an array.");
+    }
+
+    if (parsed.empty())
+    {
+        throw std::runtime_error("JSON array is empty.");
+    }
+
+    if (columns_.empty())
+    {
+        for (auto it = parsed[0].begin(); it != parsed[0].end(); ++it)
+        {
+            columns_.push_back(it.key());
+        }
+    }
+    else
+    {
+        std::set<std::string> expected(columns_.begin(), columns_.end());
+        for (const auto &item : parsed)
+        {
+            std::set<std::string> actual;
+            for (auto it = item.begin(); it != item.end(); ++it)
+            {
+                actual.insert(it.key());
+            }
+            if (actual != expected)
+            {
+                throw std::invalid_argument("Column mismatch in JSON data.");
+            }
+        }
+
+        for (const auto &item : parsed)
+        {
+            std::vector<std::string> row;
+            for (const auto &column : columns_)
+            {
+                row.push_back(item[column].get<std::string>());
+            }
+            rows_.push_back(row);
+        }
+    }
 }
 
 bool NumberValidator::isPureInteger(const std::string &str)
