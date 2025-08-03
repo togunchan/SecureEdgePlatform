@@ -663,6 +663,51 @@ std::string MiniDB::exportToJson() const
     return rowsJson.dump(4);
 }
 
+std::string MiniDB::exportToJsonFromDisk() const
+{
+    std::ifstream inFile(getTableFilePath());
+    if (!inFile.is_open())
+        throw std::runtime_error("Failed to open file for reading.");
+
+    std::string line;
+    std::getline(inFile, line);
+    std::vector<std::string> fileColumns;
+    std::stringstream headerStream(line);
+    std::string header;
+    while (std::getline(headerStream, header, ','))
+    {
+        fileColumns.push_back(header);
+    }
+
+    // start building JSON array
+    nlohmann::json jsonArray = nlohmann::json::array();
+
+    while (getline(inFile, line))
+    {
+        std::vector<std::string> rowValues;
+        std::stringstream rowStream(line);
+        std::string cell;
+
+        // tokenize each row
+        while (std::getline(rowStream, cell, ','))
+        {
+            rowValues.push_back(cell);
+        }
+
+        // construct JSON object for this row
+        nlohmann::json rowObj = nlohmann::json::object();
+        for (size_t i = 0; i < fileColumns.size(); ++i)
+        {
+            rowObj[fileColumns[i]] = rowValues[i];
+        }
+
+        // add this row to the JSON array
+        jsonArray.push_back(rowObj);
+    }
+
+    return jsonArray.dump(4);
+}
+
 bool NumberValidator::isPureInteger(const std::string &str)
 {
     if (str.empty())

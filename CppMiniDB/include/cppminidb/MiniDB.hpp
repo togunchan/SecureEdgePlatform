@@ -308,6 +308,7 @@ public:
      * ]
      */
     std::string exportToJson() const;
+    std::string exportToJsonFromDisk() const;
 
 private:
     /**
