@@ -27,9 +27,9 @@ add_executable(test_minidb tests/test_minidb.cpp)
 target_include_directories(test_minidb 
     PRIVATE 
     tests
-    ${PROJECT_SOURCE_DIR}/third_party/Catch2/src
+    ${PROJECT_SOURCE_DIR}/../third_party/Catch2/src
     ${PROJECT_SOURCE_DIR}/CppMiniDB/include
-    ${PROJECT_SOURCE_DIR}/third_party/json/single_include
+    ${PROJECT_SOURCE_DIR}/../third_party/json/single_include
 )
 
 # Link the library to the test

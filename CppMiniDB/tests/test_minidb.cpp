@@ -3,6 +3,7 @@
 #include "cppminidb/MiniDB.hpp"
 #include <iostream>
 #include <fstream>
+#include <nlohmann/json.hpp>
 
 TEST_CASE("MiniDB basic insert and export", "[MiniDB]")
 {
@@ -250,4 +251,39 @@ TEST_CASE("MiniDB deletes rows from disk correctly", "[delete][disk]")
     REQUIRE(results.size() == 2);
     REQUIRE(results[0]["Name"] == "Bob");
     REQUIRE(results[1]["Name"] == "David");
+}
+
+TEST_CASE("MiniDB exports JSON from memory correctly", "[export][json][memory]")
+{
+    MiniDB db("json_memory_table");
+    db.setColumns({"Name", "Age"});
+    db.insertRow({"Alice", "30"});
+    db.insertRow({"Bob", "25"});
+
+    std::string jsonOutput = db.exportToJson();
+
+    nlohmann::json parsed = nlohmann::json::parse(jsonOutput);
+
+    REQUIRE(parsed.is_array());
+    REQUIRE(parsed.size() == 2);
+    REQUIRE(parsed[0]["Name"] == "Alice");
+    REQUIRE(parsed[1]["Age"] == "25");
+}
+
+TEST_CASE("MiniDB exports JSON from disk correctly", "[export][json][disk]")
+{
+    MiniDB db("json_disk_table");
+    db.setColumns({"Name", "Age"});
+    db.insertRow({"Charlie", "22"});
+    db.insertRow({"Diana", "28"});
+    db.save();
+
+    std::string jsonOutput = db.exportToJsonFromDisk();
+
+    nlohmann::json parsed = nlohmann::json::parse(jsonOutput);
+
+    REQUIRE(parsed.is_array());
+    REQUIRE(parsed.size() == 2);
+    REQUIRE(parsed[0]["Name"] == "Charlie");
+    REQUIRE(parsed[1]["Age"] == "28");
 }
