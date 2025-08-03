@@ -11,17 +11,25 @@ add_library(minidb
     src/MiniDB.cpp
 )
 
+# Add nlohmann/json include path (single header mode)
+target_include_directories(minidb 
+    PRIVATE 
+    ${PROJECT_SOURCE_DIR}/../third_party/json/single_include
+)
+
+# Add Catch2
 add_subdirectory(../third_party/Catch2 Catch2-build)
 
 # Test executable
 add_executable(test_minidb tests/test_minidb.cpp)
 
-# Include catch2 header path
+# Include test & third-party headers
 target_include_directories(test_minidb 
     PRIVATE 
     tests
     ${PROJECT_SOURCE_DIR}/third_party/Catch2/src
     ${PROJECT_SOURCE_DIR}/CppMiniDB/include
+    ${PROJECT_SOURCE_DIR}/third_party/json/single_include
 )
 
 # Link the library to the test
@@ -30,6 +38,7 @@ target_link_libraries(test_minidb
     minidb 
     Catch2::Catch2WithMain)
 
+# Enable Catch2 integration
 include(CTest)
 include(Catch)
 catch_discover_tests(test_minidb)

@@ -159,7 +159,7 @@ public:
      * @note Assumes that `columns_` and `rows_` are properly aligned.
      * @throws None. This method does not perform file I/O or error handling.
      */
-    std::string exportToJson() const;
+    std::string exportToJsonLegacy() const;
 
     /**
      * @brief Executes a filter query on in-memory rows.
@@ -283,6 +283,31 @@ public:
     void deleteWhereFromDisk(const std::string &column,
                              const std::string &op,
                              const std::string &value);
+
+    /**
+     * @brief Serializes in-memory table data into a JSON-formatted string.
+     *
+     * This function converts the current in-memory rows of the MiniDB instance into a
+     * JSON representation. Each row is serialized as a JSON object, where keys correspond
+     * to column names and values to the respective cell contents. The result is a JSON array
+     * of row objects.
+     *
+     * @return A JSON-formatted string representing the in-memory table contents.
+     *
+     * @note This function only reflects the current in-memory state and does not include
+     *       any data stored on disk. Column order is preserved, and all values are treated
+     *       as strings in the output.
+     *
+     * @example
+     * Given columns: ["id", "name"]
+     * And rows: [["1", "Alice"], ["2", "Bob"]]
+     * The output will be:
+     * [
+     *   { "id": "1", "name": "Alice" },
+     *   { "id": "2", "name": "Bob" }
+     * ]
+     */
+    std::string exportToJson() const;
 
 private:
     /**

@@ -3,6 +3,7 @@
 #include <sstream>
 #include <iostream>
 #include <filesystem>
+#include <nlohmann/json.hpp>
 
 MiniDB::MiniDB(const std::string &tableName) : tableName_(tableName) {}
 
@@ -162,7 +163,7 @@ void MiniDB::clear()
     outFile << "\n";
 }
 
-std::string MiniDB::exportToJson() const
+std::string MiniDB::exportToJsonLegacy() const
 {
     std::ostringstream oss;
 
@@ -636,6 +637,30 @@ void MiniDB::deleteWhereFromDisk(const std::string &column,
     inFile.close();
     outFile.close();
     std::filesystem::rename(getTempFilePath(), getTableFilePath());
+}
+
+std::string MiniDB::exportToJson() const
+{
+    if (columns_.empty())
+    {
+        throw std::runtime_error("No columns defined.Columns must be defined before exporting to JSON.");
+    }
+
+    using json = nlohmann::json;
+    json rowsJson = json::array();
+
+    for (const auto &row : rows_)
+    {
+        json rowObj = json::object();
+        for (size_t i = 0; i < columns_.size(); ++i)
+        {
+            std::string cellValue(i < row.size() ? row[i] : "");
+            rowObj[columns_[i]] = cellValue;
+        }
+        rowsJson.push_back(rowObj);
+    }
+
+    return rowsJson.dump(4);
 }
 
 bool NumberValidator::isPureInteger(const std::string &str)

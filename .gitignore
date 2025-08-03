@@ -3,6 +3,9 @@ build/
 CppMiniDB/build/
 third_party/Catch2/build/
 third_party/Catch2/install/
+third_party/json/build/
+third_party/json/CMakeFiles/
+third_party/json/CMakeCache.txt
 
 # Object & binary files
 *.o
@@ -19,12 +22,23 @@ third_party/Catch2/install/
 CMakeCache.txt
 CMakeFiles/
 
-# Test logs
-Testing/
+# CMake generated files
 Makefile
 CTestTestfile.cmake
 cmake_install.cmake
 
+# Test logs
+Testing/
+
 # Generated files
 *.log
 *.json.tmp
+
+# Patch & diff files
+*.diff
+*.patch
+
+# Temporary & backup files
+*.tmp
+*.bak
+*.swp
