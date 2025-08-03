@@ -711,6 +711,9 @@ std::string MiniDB::exportToJsonFromDisk() const
 
 void MiniDB::importFromJson(const std::string &jsonString)
 {
+
+    std::cout << "Importing JSON: " << jsonString << std::endl;
+
     nlohmann::json parsed;
     try
     {
@@ -722,14 +725,10 @@ void MiniDB::importFromJson(const std::string &jsonString)
     }
 
     if (!parsed.is_array())
-    {
         throw std::runtime_error("JSON must be an array.");
-    }
 
     if (parsed.empty())
-    {
         throw std::runtime_error("JSON array is empty.");
-    }
 
     if (columns_.empty())
     {
@@ -753,16 +752,16 @@ void MiniDB::importFromJson(const std::string &jsonString)
                 throw std::invalid_argument("Column mismatch in JSON data.");
             }
         }
+    }
 
-        for (const auto &item : parsed)
+    for (const auto &item : parsed)
+    {
+        std::vector<std::string> row;
+        for (const auto &column : columns_)
         {
-            std::vector<std::string> row;
-            for (const auto &column : columns_)
-            {
-                row.push_back(item[column].get<std::string>());
-            }
-            rows_.push_back(row);
+            row.push_back(item[column].get<std::string>());
         }
+        rows_.push_back(row);
     }
 }
 

@@ -287,3 +287,23 @@ TEST_CASE("MiniDB exports JSON from disk correctly", "[export][json][disk]")
     REQUIRE(parsed[0]["Name"] == "Charlie");
     REQUIRE(parsed[1]["Age"] == "28");
 }
+
+TEST_CASE("MiniDB imports valid JSON correctly", "[import][memory]")
+{
+    MiniDB db("json_import_test");
+
+    std::string jsonStr = R"([
+        { "Name": "Alice", "Age": "30" },
+        { "Name": "Bob", "Age": "25" },
+        { "Name": "Charlie", "Age": "28" }
+    ])";
+
+    db.importFromJson(jsonStr);
+    auto results = db.selectAll();
+
+    REQUIRE(results.size() == 3);
+    REQUIRE(results[0]["Name"] == "Alice");
+    REQUIRE(results[0]["Age"] == "30");
+    REQUIRE(results[1]["Name"] == "Bob");
+    REQUIRE(results[2]["Name"] == "Charlie");
+}
