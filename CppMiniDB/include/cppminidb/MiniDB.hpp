@@ -337,6 +337,39 @@ public:
      */
     void importFromJson(const std::string &jsonString);
 
+    /**
+     * @brief Imports JSON array directly to the table file on disk.
+     *
+     * Parses a JSON array of objects and writes rows to the `.tbl` file without
+     * populating in-memory rows_. When append=false, the file is rewritten with
+     * a header line (derived from the first JSON object's keys) followed by all rows.
+     * When append=true and the file exists, the header must match the incoming JSON keys;
+     * otherwise, an exception is thrown. If the file does not exist, it will be created
+     * and initialized with the inferred header.
+     *
+     * Missing keys are written as empty strings, extra keys are ignored. Column order is
+     * determined by the inferred/loaded header and preserved in the file.
+     *
+     * @param jsonString JSON-formatted string (array of objects) to import.
+     * @param append If true, rows are appended to existing table (header must match).
+     *               If false (default), the file is recreated from the JSON input.
+     *
+     * @throws std::runtime_error on I/O errors, malformed JSON or empty array.
+     * @throws std::invalid_argument on header/schema mismatch in append mode.
+     *
+     * @example
+     * // Given:
+     * // [
+     * //   {"Name":"Alice","Age":"30"},
+     * //   {"Name":"Bob","Age":"25"}
+     * // ]
+     * // Resulting file (overwrite mode):
+     * // Name,Age
+     * // Alice,30
+     * // Bob,25
+     */
+    void importFromJsonToDisk(const std::string &jsonString, bool append = false);
+
 private:
     /**
      * @brief Stores the name of the table.

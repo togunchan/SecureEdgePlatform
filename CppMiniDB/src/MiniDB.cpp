@@ -712,8 +712,6 @@ std::string MiniDB::exportToJsonFromDisk() const
 void MiniDB::importFromJson(const std::string &jsonString)
 {
 
-    std::cout << "Importing JSON: " << jsonString << std::endl;
-
     nlohmann::json parsed;
     try
     {
@@ -763,6 +761,38 @@ void MiniDB::importFromJson(const std::string &jsonString)
         }
         rows_.push_back(row);
     }
+}
+
+void MiniDB::importFromJsonToDisk(const std::string &jsonString, bool append)
+{
+    nlohmann::json parsed;
+    try
+    {
+        parsed = nlohmann::json::parse(jsonString);
+    }
+    catch (const nlohmann::json::parse_error &e)
+    {
+        throw std::runtime_error("Invalid JSON format: " + std::string(e.what()));
+    }
+
+    if (!parsed.is_array())
+        throw std::runtime_error("JSON must be an array of objects.");
+
+    if (parsed.empty())
+        throw std::runtime_error("JSON array is empty.");
+
+    if (!parsed.front().is_object())
+        throw std::runtime_error("JSON array elements must be objects.");
+
+    std::vector<std::string> jsonColumns;
+    jsonColumns.reserve(parsed.front().size());
+    for (auto it = parsed.front().begin(); it != parsed.front().end(); ++it)
+    {
+        jsonColumns.push_back(it.key());
+    }
+
+    std::filesystem::create_directories("data");
+    const std::string tableFilePath = getTableFilePath();
 }
 
 bool NumberValidator::isPureInteger(const std::string &str)
