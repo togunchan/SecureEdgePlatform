@@ -833,6 +833,75 @@ void MiniDB::importFromJsonToDisk(const std::string &jsonString, bool append)
         outFile.close();
         std::filesystem::rename(getTempFilePath(), tableFilePath);
     }
+    else
+    {
+        // append mode
+        std::vector<std::string> fileColumns;
+        std::ifstream inFile(tableFilePath);
+        if (inFile.is_open())
+        {
+            std::string headerLine;
+            if (!std::getline(inFile, headerLine))
+                throw std::runtime_error("Failed to read header line from existing file.");
+
+            std::stringstream headerStream(headerLine);
+            std::string header;
+            while (std::getline(headerStream, header, ','))
+            {
+                fileColumns.push_back(header);
+            }
+            inFile.close();
+
+            std::set<std::string> expected(fileColumns.begin(), fileColumns.end());
+            std::set<std::string> actual(jsonColumns.begin(), jsonColumns.end());
+            if (actual != expected)
+                throw std::invalid_argument("Column mismatch in JSON data in append mode.");
+        }
+        else
+        {
+            // file doesn't exist. Create with header
+            std::ofstream outFile(tableFilePath, std::ios::trunc);
+            if (!outFile.is_open())
+                throw std::runtime_error("Failed to open file for writing.");
+
+            // write headers
+            for (size_t i = 0; i < jsonColumns.size(); ++i)
+            {
+                outFile << jsonColumns[i];
+                if (i != jsonColumns.size() - 1)
+                    outFile << ",";
+            }
+            outFile << "\n";
+            outFile.close();
+            fileColumns = jsonColumns; // Since the file was just created, adopt the JSON columns as the file header
+        }
+
+        // append rows
+        std::ofstream outFile(tableFilePath, std::ios::app);
+        if (!outFile.is_open())
+            throw std::runtime_error("Failed to open file for appending.");
+
+        for (const auto &item : parsed)
+        {
+            for (size_t i = 0; i < fileColumns.size(); ++i)
+            {
+                std::string cell;
+                if (item.contains(fileColumns[i]) && !item[fileColumns[i]].is_null())
+                {
+                    cell = item[fileColumns[i]].get<std::string>();
+                }
+                else
+                {
+                    cell = "";
+                }
+                outFile << cell;
+                if (i != fileColumns.size() - 1)
+                    outFile << ",";
+            }
+            outFile << "\n";
+        }
+        outFile.close();
+    }
 }
 
 bool NumberValidator::isPureInteger(const std::string &str)
