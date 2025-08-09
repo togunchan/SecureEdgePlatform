@@ -793,6 +793,46 @@ void MiniDB::importFromJsonToDisk(const std::string &jsonString, bool append)
 
     std::filesystem::create_directories("data");
     const std::string tableFilePath = getTableFilePath();
+
+    if (!append)
+    {
+        std::ofstream outFile(getTempFilePath(), std::ios::trunc);
+
+        if (!outFile.is_open())
+            throw std::runtime_error("Failed to open temp file for writing.");
+
+        // write headers
+        for (size_t i = 0; i < jsonColumns.size(); ++i)
+        {
+            outFile << jsonColumns[i];
+            if (i != jsonColumns.size() - 1)
+                outFile << ",";
+        }
+        outFile << "\n";
+
+        // write rows
+        for (const auto &item : parsed)
+        {
+            for (size_t i = 0; i < jsonColumns.size(); ++i)
+            {
+                std::string cell;
+                if (item.contains(jsonColumns[i]) && !item[jsonColumns[i]].is_null())
+                {
+                    cell = item[jsonColumns[i]].get<std::string>();
+                }
+                else
+                {
+                    cell = "";
+                }
+                outFile << cell;
+                if (i != jsonColumns.size() - 1)
+                    outFile << ",";
+            }
+            outFile << "\n";
+        }
+        outFile.close();
+        std::filesystem::rename(getTempFilePath(), tableFilePath);
+    }
 }
 
 bool NumberValidator::isPureInteger(const std::string &str)
