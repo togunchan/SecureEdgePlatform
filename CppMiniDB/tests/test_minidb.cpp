@@ -363,3 +363,26 @@ TEST_CASE("MiniDB importFromJsonToDisk appends rows when headers match", "[impor
     REQUIRE(rows[3]["Name"] == "Diana");
     REQUIRE(rows[3]["Age"] == "22");
 }
+
+TEST_CASE("MiniDB importFromJsonToDisk throws on header mismatch in append mode", "[import][disk][append][error]")
+{
+    MiniDB db("json_import_error_test");
+
+    const std::string firstJson = R"([
+        { "Name": "Alice", "Age": "30" },
+        { "Name": "Bob", "Age": "25" }
+    ])";
+
+    // const std::string secondJson = R"([
+    //     { "OldName": "Charlie", "OldAge": "28" },
+    //     { "OldName": "Diana", "OldAge": "22" }
+    // ])";
+
+    const std::string secondJson = R"([
+        { "Name": "Bob", "Age": "25", "City": "London" }
+    ])";
+
+    db.importFromJsonToDisk(firstJson, false);
+
+    REQUIRE_THROWS_AS(db.importFromJsonToDisk(secondJson, true), std::invalid_argument);
+}
