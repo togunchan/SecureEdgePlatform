@@ -381,6 +381,19 @@ public:
      */
     void clearMemory();
 
+    /**
+     * @brief Clears the on-disk table file, optionally preserving the header row.
+     *
+     * When keepHeader is true, the .tbl file is rewritten to contain only the
+     * first (header) line. When keepHeader is false, the file is removed from disk.
+     * If the file does not exist, this function is a no-op.
+     *
+     * @param keepHeader If true, preserves the header line; otherwise removes the file.
+     *
+     * @note This function does not modify in-memory rows_ or columns_.
+     */
+    void clearDisk(bool keepHeader = true);
+
 private:
     /**
      * @brief Stores the name of the table.

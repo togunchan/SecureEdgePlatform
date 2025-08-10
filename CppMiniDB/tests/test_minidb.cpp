@@ -405,3 +405,39 @@ TEST_CASE("MiniDB clearMemory removes rows but keeps schema", "[clear][memory]")
     REQUIRE(rows[0].at("A") == "z");
     REQUIRE(rows[0].at("B") == "3");
 }
+
+TEST_CASE("MiniDB clearDisk(keepHeader=true) keeps only header", "[clear][disk]")
+{
+    MiniDB db("clear_disk_keep_header");
+    db.setColumns({"C1", "C2"});
+    db.insertRow({"x", "1"});
+    db.insertRow({"y", "2"});
+    db.save();
+
+    db.clearDisk(true);
+
+    auto rows = db.loadFromDisk();
+    REQUIRE(rows.empty());
+
+    db.clearMemory();
+
+    db.insertRow({"z", "3"});
+    db.save();
+    auto rows2 = db.loadFromDisk();
+    REQUIRE(rows2.size() == 1);
+    REQUIRE(rows2[0].at("C1") == "z");
+    REQUIRE(rows2[0].at("C2") == "3");
+}
+
+TEST_CASE("MiniDB clearDisk(keepHeader=false) removes file", "[clear][disk]")
+{
+    MiniDB db("clear_disk_remove_file");
+    db.setColumns({"K1", "K2"});
+    db.insertRow({"a", "b"});
+    db.save();
+
+    db.clearDisk(false);
+
+    auto rows = db.loadFromDisk();
+    REQUIRE(rows.empty());
+}

@@ -909,6 +909,42 @@ void MiniDB::clearMemory()
     rows_.clear();
 }
 
+void MiniDB::clearDisk(bool keepHeader)
+{
+    const std::string path = getTableFilePath();
+
+    if (!std::filesystem::exists(path))
+        return;
+
+    if (!keepHeader)
+    {
+        std::error_code ec;
+        std::filesystem::remove(path, ec);
+        if (ec)
+            std::cout << "Error: " << ec.message() << std::endl;
+    }
+
+    std::ifstream inFile(path);
+    if (!inFile.is_open())
+        return;
+
+    std::string headerLine;
+    if (!std::getline(inFile, headerLine))
+    {
+        inFile.close();
+        std::ofstream outFile(path, std::ios::trunc);
+        return;
+    }
+    inFile.close();
+
+    std::ofstream outFile(path, std::ios::trunc);
+    if (!outFile.is_open())
+        return;
+
+    outFile << headerLine << "\n";
+    outFile.close();
+}
+
 bool NumberValidator::isPureInteger(const std::string &str)
 {
     if (str.empty())
