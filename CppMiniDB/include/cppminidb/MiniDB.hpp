@@ -370,6 +370,17 @@ public:
      */
     void importFromJsonToDisk(const std::string &jsonString, bool append = false);
 
+    /**
+     * @brief Clears all in-memory rows while preserving the table schema.
+     *
+     * Removes every row stored in memory (rows_) without modifying the column
+     * definitions or the on-disk table file. Useful when you want to reset the
+     * in-memory cache and start inserting fresh rows against the same schema.
+     *
+     * @note This function does not affect the .tbl file on disk.
+     */
+    void clearMemory();
+
 private:
     /**
      * @brief Stores the name of the table.

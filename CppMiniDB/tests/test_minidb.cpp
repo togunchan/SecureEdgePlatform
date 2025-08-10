@@ -386,3 +386,22 @@ TEST_CASE("MiniDB importFromJsonToDisk throws on header mismatch in append mode"
 
     REQUIRE_THROWS_AS(db.importFromJsonToDisk(secondJson, true), std::invalid_argument);
 }
+
+TEST_CASE("MiniDB clearMemory removes rows but keeps schema", "[clear][memory]")
+{
+    MiniDB db("clear_memory_table");
+    db.setColumns({"A", "B"});
+
+    db.insertRow({"x", "1"});
+    db.insertRow({"y", "2"});
+    REQUIRE(db.selectAll().size() == 2);
+
+    db.clearMemory();
+    REQUIRE(db.selectAll().empty());
+
+    db.insertRow({"z", "3"});
+    auto rows = db.selectAll();
+    REQUIRE(rows.size() == 1);
+    REQUIRE(rows[0].at("A") == "z");
+    REQUIRE(rows[0].at("B") == "3");
+}

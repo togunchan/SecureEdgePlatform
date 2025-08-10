@@ -904,6 +904,11 @@ void MiniDB::importFromJsonToDisk(const std::string &jsonString, bool append)
     }
 }
 
+void MiniDB::clearMemory()
+{
+    rows_.clear();
+}
+
 bool NumberValidator::isPureInteger(const std::string &str)
 {
     if (str.empty())
