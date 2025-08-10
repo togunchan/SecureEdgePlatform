@@ -334,3 +334,32 @@ TEST_CASE("MiniDB importFromJsonToDisk overwrites file correctly", "[import][dis
     REQUIRE(rows[0].count("OldColA") == 0);
     REQUIRE(rows[1].count("OldColB") == 0);
 }
+
+TEST_CASE("MiniDB importFromJsonToDisk appends rows when headers match", "[import][disk][append]")
+{
+    MiniDB db("json_import_append_test");
+
+    const std::string firstJson = R"([
+        { "Name": "Alice", "Age": "30" },
+        { "Name": "Bob", "Age": "25" }
+    ])";
+
+    const std::string secondJson = R"([
+        { "Name": "Charlie", "Age": "28" },
+        { "Name": "Diana", "Age": "22" }
+    ])";
+
+    db.importFromJsonToDisk(firstJson, false);
+    db.importFromJsonToDisk(secondJson, true);
+    auto rows = db.loadFromDisk();
+
+    REQUIRE(rows.size() == 4);
+    REQUIRE(rows[0]["Name"] == "Alice");
+    REQUIRE(rows[0]["Age"] == "30");
+    REQUIRE(rows[1]["Name"] == "Bob");
+    REQUIRE(rows[1]["Age"] == "25");
+    REQUIRE(rows[2]["Name"] == "Charlie");
+    REQUIRE(rows[2]["Age"] == "28");
+    REQUIRE(rows[3]["Name"] == "Diana");
+    REQUIRE(rows[3]["Age"] == "22");
+}
