@@ -307,3 +307,30 @@ TEST_CASE("MiniDB imports valid JSON correctly", "[import][memory]")
     REQUIRE(results[1]["Name"] == "Bob");
     REQUIRE(results[2]["Name"] == "Charlie");
 }
+
+TEST_CASE("MiniDB importFromJsonToDisk overwrites file correctly", "[import][disk][overwrite]")
+{
+    MiniDB db("json_import_test_disk");
+
+    db.setColumns({"OldColA", "OldColB"});
+    db.insertRow({"X1", "Y1"});
+    db.insertRow({"X2", "Y2"});
+    db.save();
+
+    const std::string jsonStr = R"([
+        { "Name": "Charlie", "Age": "28" },
+        { "Name": "Diana", "Age": "22" }
+    ])";
+
+    db.importFromJsonToDisk(jsonStr, false);
+    auto rows = db.loadFromDisk();
+
+    REQUIRE(rows.size() == 2);
+    REQUIRE(rows[0]["Name"] == "Charlie");
+    REQUIRE(rows[0]["Age"] == "28");
+    REQUIRE(rows[1]["Name"] == "Diana");
+    REQUIRE(rows[1]["Age"] == "22");
+
+    REQUIRE(rows[0].count("OldColA") == 0);
+    REQUIRE(rows[1].count("OldColB") == 0);
+}
