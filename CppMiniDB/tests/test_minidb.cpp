@@ -463,3 +463,30 @@ TEST_CASE("MiniDB rowCount and columnCount report sizes", "[helpers][sizes]")
     db.insertRow({"x", "y", "z"});
     REQUIRE(db.rowCount() == 1);
 }
+
+TEST_CASE("MiniDB typed schema: setColumns(names, types) assigns ColumnType", "[schema][typed][api]")
+{
+    MiniDB db("typed_api_table");
+
+    db.setColumns({"age", "name", "score"},
+                  {MiniDB::ColumnType::Int, MiniDB::ColumnType::String, MiniDB::ColumnType::Float});
+
+    REQUIRE(db.columnCount() == 3);
+
+    REQUIRE(db.columnTypeOf("age") == MiniDB::ColumnType::Int);
+    REQUIRE(db.columnTypeOf("name") == MiniDB::ColumnType::String);
+    REQUIRE(db.columnTypeOf("score") == MiniDB::ColumnType::Float);
+
+    REQUIRE_THROWS_AS(db.columnTypeOf("unknown"), std::invalid_argument);
+}
+
+TEST_CASE("MiniDB typed schema: setColumns(names) defaults all types to String", "[schema][typed][default]")
+{
+    MiniDB db("typed_default_table");
+
+    db.setColumns({"A", "B"});
+    REQUIRE(db.columnCount() == 2);
+
+    REQUIRE(db.columnTypeOf("A") == MiniDB::MiniDB::ColumnType::String);
+    REQUIRE(db.columnTypeOf("B") == MiniDB::ColumnType::String);
+}

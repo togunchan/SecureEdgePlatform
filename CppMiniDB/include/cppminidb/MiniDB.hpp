@@ -54,6 +54,13 @@
 class MiniDB
 {
 public:
+    /// Column type descriptor for typed comparisons
+    enum class ColumnType
+    {
+        String,
+        Int,
+        Float
+    };
     /**
      * @brief Constructor to initialize the MiniDB instance with a table name.
      * @param tableName Name of the table, also used for file storage.
@@ -63,14 +70,31 @@ public:
     MiniDB(const std::string &tableName);
 
     /**
-     * @brief Defines the column headers for the table.
-     * @param columnNames Vector of column names as strings.
+     * @brief Sets schema with names only; defaults all column types to String.
      *
-     * This method should be called before inserting rows. Each row added later must
-     * match the number and order of these column names.
+     * @param names Column names in order.
+     * @throws std::invalid_argument if names is empty.
      */
-    void setColumns(const std::vector<std::string> &columnNames);
+    void setColumns(const std::vector<std::string> &names);
 
+    /**
+     * @brief Sets schema with explicit types per column.
+     *
+     * @param names Column names in order.
+     * @param types Column types corresponding to each name.
+     * @throws std::invalid_argument if sizes mismatch or names is empty.
+     */
+    void setColumns(const std::vector<std::string> &names,
+                    const std::vector<ColumnType> &types);
+
+    /**
+     * @brief Returns the declared type for a column name.
+     *
+     * @param name Column name to query.
+     * @return ColumnType The declared type.
+     * @throws std::invalid_argument if column name is not found.
+     */
+    ColumnType columnTypeOf(const std::string &name) const;
     /**
      * @brief Inserts a row of data into the table.
      * @param values Vector of values, each corresponding to a column.
@@ -439,6 +463,8 @@ private:
      */
     std::string getTableFilePath() const;
     std::string getTempFilePath() const;
+
+    std::vector<ColumnType> columnTypes_;
 };
 
 /**

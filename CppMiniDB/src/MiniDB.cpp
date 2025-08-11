@@ -8,9 +8,39 @@
 
 MiniDB::MiniDB(const std::string &tableName) : tableName_(tableName) {}
 
-void MiniDB::setColumns(const std::vector<std::string> &columnNames)
+void MiniDB::setColumns(const std::vector<std::string> &names)
 {
-    columns_ = columnNames;
+    if (names.empty())
+        throw std::runtime_error("Column names cannot be empty.");
+    columns_ = names;
+    columnTypes_.assign(names.size(), ColumnType::String);
+}
+
+void MiniDB::setColumns(const std::vector<std::string> &names, const std::vector<ColumnType> &types)
+{
+    if (names.empty())
+        throw std::runtime_error("Column names cannot be empty.");
+    if (types.empty())
+        throw std::runtime_error("Column types cannot be empty.");
+    if (names.size() != types.size())
+        throw std::runtime_error("Column names and types must have the same size");
+
+    columns_ = names;
+    columnTypes_ = types;
+}
+
+MiniDB::ColumnType MiniDB::columnTypeOf(const std::string &columnName) const
+{
+    auto it = std::find(columns_.begin(), columns_.end(), columnName);
+    if (it != columns_.end())
+    {
+        size_t index = std::distance(columns_.begin(), it);
+        return columnTypes_.at(index);
+    }
+    else
+    {
+        throw std::invalid_argument("Column not found: " + columnName);
+    }
 }
 
 void MiniDB::insertRow(const std::vector<std::string> &values)
