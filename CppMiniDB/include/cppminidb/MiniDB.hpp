@@ -394,6 +394,23 @@ public:
      */
     void clearDisk(bool keepHeader = true);
 
+    /**
+     * @brief Checks if the given column name exists in the current schema.
+     */
+    bool hasColumn(const std::string &name) const;
+
+    /**
+     * @brief Returns the number of defined columns in the schema.
+     */
+    std::size_t columnCount() const noexcept;
+
+    /**
+     * @brief Returns the number of in-memory rows currently stored.
+     *
+     * @note This reports the size of rows_ (memory), not on-disk row count.
+     */
+    std::size_t rowCount() const noexcept;
+
 private:
     /**
      * @brief Stores the name of the table.

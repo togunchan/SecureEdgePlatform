@@ -441,3 +441,25 @@ TEST_CASE("MiniDB clearDisk(keepHeader=false) removes file", "[clear][disk]")
     auto rows = db.loadFromDisk();
     REQUIRE(rows.empty());
 }
+
+TEST_CASE("MiniDB hasColumn reflects defined schema", "[helpers][schema]")
+{
+    MiniDB db("helpers_hascolumn");
+    db.setColumns({"A", "B"});
+
+    REQUIRE(db.hasColumn("A"));
+    REQUIRE(db.hasColumn("B"));
+    REQUIRE_FALSE(db.hasColumn("X"));
+}
+
+TEST_CASE("MiniDB rowCount and columnCount report sizes", "[helpers][sizes]")
+{
+    MiniDB db("helpers_counts");
+    db.setColumns({"C1", "C2", "C3"});
+
+    REQUIRE(db.columnCount() == 3);
+    REQUIRE(db.rowCount() == 0);
+
+    db.insertRow({"x", "y", "z"});
+    REQUIRE(db.rowCount() == 1);
+}

@@ -945,6 +945,21 @@ void MiniDB::clearDisk(bool keepHeader)
     outFile.close();
 }
 
+bool MiniDB::hasColumn(const std::string &name) const
+{
+    return std::find(columns_.begin(), columns_.end(), name) != columns_.end();
+}
+
+std::size_t MiniDB::columnCount() const noexcept
+{
+    return columns_.size();
+}
+
+std::size_t MiniDB::rowCount() const noexcept
+{
+    return rows_.size();
+}
+
 bool NumberValidator::isPureInteger(const std::string &str)
 {
     if (str.empty())
