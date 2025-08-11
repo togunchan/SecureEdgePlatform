@@ -435,6 +435,9 @@ public:
      */
     std::size_t rowCount() const noexcept;
 
+    // Validates whether the operator is allowed for the given column type
+    static bool isOpAllowedForType(const std::string &op, ColumnType t);
+
 private:
     /**
      * @brief Stores the name of the table.

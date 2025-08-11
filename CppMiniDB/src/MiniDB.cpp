@@ -990,6 +990,18 @@ std::size_t MiniDB::rowCount() const noexcept
     return rows_.size();
 }
 
+bool MiniDB::isOpAllowedForType(const std::string &op, ColumnType t)
+{
+    if (op == "==" || op == "!=")
+        return true;
+
+    const bool ordering = (op == ">" || op == ">=" || op == "<" || op == "<=");
+    if (!ordering)
+        return false;
+
+    return (t == MiniDB::ColumnType::Int || t == MiniDB::ColumnType::Float);
+}
+
 bool NumberValidator::isPureInteger(const std::string &str)
 {
     if (str.empty())
