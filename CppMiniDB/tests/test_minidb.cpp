@@ -490,3 +490,12 @@ TEST_CASE("MiniDB typed schema: setColumns(names) defaults all types to String",
     REQUIRE(db.columnTypeOf("A") == MiniDB::MiniDB::ColumnType::String);
     REQUIRE(db.columnTypeOf("B") == MiniDB::ColumnType::String);
 }
+
+TEST_CASE("MiniDB typed: string column rejects ordering ops in memory", "[typed][op][memory]")
+{
+    MiniDB db("typed_op_memory");
+    db.setColumns({"name"}, {MiniDB::ColumnType::String});
+
+    db.insertRow({"Alice"});
+    REQUIRE_THROWS_AS(db.selectWhereFromMemory("name", ">", "K"), std::invalid_argument);
+}

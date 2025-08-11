@@ -260,6 +260,14 @@ std::vector<std::map<std::string, std::string>> MiniDB::selectWhereFromMemory(
         throw std::invalid_argument("Column not found: " + column);
 
     auto it = std::find(columns_.begin(), columns_.end(), column);
+
+    if (it == columns_.end())
+        throw std::invalid_argument("Column not found: " + column);
+
+    auto ct = MiniDB::columnTypeOf(column);
+    if (!isOpAllowedForType(op, ct))
+        throw std::invalid_argument("Operator not allowed for this column type:" + op);
+
     size_t colIndex = std::distance(columns_.begin(), it);
 
     for (const auto &row : rows_)
