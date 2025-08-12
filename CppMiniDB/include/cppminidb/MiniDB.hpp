@@ -228,8 +228,8 @@ public:
      * @param b    Right-hand side operand (target value)
      * @return     True if the comparison is valid, false otherwise
      */
-    bool compare(int a, const std::string &op, int b) const;
-    bool compare(std::string a, const std::string &op, std::string b) const;
+    bool compareNumeric(int a, const std::string &op, int b) const;
+    bool compareString(std::string a, const std::string &op, std::string b) const;
 
     /**
      * @brief Filters in-memory rows based on a conditional expression and updates matching entries.
@@ -437,6 +437,36 @@ public:
 
     // Validates whether the operator is allowed for the given column type
     static bool isOpAllowedForType(const std::string &op, ColumnType t);
+
+    /**
+     * @brief Attempts to parse a string as a signed integer.
+     *
+     * This function first validates whether the input string `s` represents
+     * a syntactically correct signed integer using `NumberValidator::isSignedInteger`.
+     * If valid, it tries to convert the string to an `int` using `std::stoi`.
+     * If the conversion succeeds, the parsed value is stored in `out` and the function returns true.
+     * If the string is invalid or conversion fails (e.g. out-of-range), it returns false.
+     *
+     * @param s The input string to parse.
+     * @param out Reference to an integer where the parsed value will be stored if successful.
+     * @return true if parsing succeeds, false otherwise.
+     */
+    static bool tryParseInt(const std::string &s, int &out);
+
+    /**
+     * @brief Attempts to parse a string as a floating-point number.
+     *
+     * This function first validates whether the input string `s` represents
+     * a syntactically correct float using `NumberValidator::isFloat`.
+     * If valid, it tries to convert the string to a `float` using `std::stof`.
+     * If the conversion succeeds, the parsed value is stored in `out` and the function returns true.
+     * If the string is invalid or conversion fails (e.g. out-of-range), it returns false.
+     *
+     * @param s The input string to parse.
+     * @param out Reference to a float where the parsed value will be stored if successful.
+     * @return true if parsing succeeds, false otherwise.
+     */
+    static bool tryParseFloat(const std::string &s, double &out);
 
 private:
     /**

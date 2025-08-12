@@ -220,7 +220,7 @@ std::string MiniDB::exportToJsonLegacy() const
     return oss.str();
 }
 
-bool MiniDB::compare(int a, const std::string &op, int b) const
+bool MiniDB::compareNumeric(int a, const std::string &op, int b) const
 {
     if (op == "==")
         return a == b;
@@ -238,7 +238,7 @@ bool MiniDB::compare(int a, const std::string &op, int b) const
     throw std::invalid_argument("Unsupported operator for integer: " + op);
 }
 
-bool MiniDB::compare(std::string a, const std::string &op, std::string b) const
+bool MiniDB::compareString(std::string a, const std::string &op, std::string b) const
 {
     if (op == "==")
         return a == b;
@@ -261,14 +261,21 @@ std::vector<std::map<std::string, std::string>> MiniDB::selectWhereFromMemory(
 
     auto it = std::find(columns_.begin(), columns_.end(), column);
 
-    if (it == columns_.end())
-        throw std::invalid_argument("Column not found: " + column);
+    const size_t colIndex = std::distance(columns_.begin(), it);
 
     auto ct = MiniDB::columnTypeOf(column);
     if (!isOpAllowedForType(op, ct))
         throw std::invalid_argument("Operator not allowed for this column type:" + op);
 
-    size_t colIndex = std::distance(columns_.begin(), it);
+    // here we preparse RHS(right hand side) once if numeric
+    int rhsI = 0;          // for int colmuns
+    double rhsF = 0.0;     // for float columns
+    bool rhsParsed = true; // assume true for string
+
+    if (MiniDB::ColumnType::Int == ct)
+        rhsParsed = tryParseInt(value, rhsI);
+    else if (MiniDB::ColumnType::Float == ct)
+        rhsParsed = tryParseFloat(value, rhsF);
 
     for (const auto &row : rows_)
     {
@@ -276,36 +283,47 @@ std::vector<std::map<std::string, std::string>> MiniDB::selectWhereFromMemory(
             continue;
 
         const std::string &cell = row[colIndex];
-        if (NumberValidator::isPureInteger(cell) && NumberValidator::isPureInteger(value))
-        {
-            int rowValue = std::stoi(row[colIndex]);
-            int targetValue = std::stoi(value);
+        bool match = false;
 
-            if (MiniDB::compare(rowValue, op, targetValue))
-            {
-                std::map<std::string, std::string> rowMap;
-                for (size_t i = 0; i < columns_.size(); ++i)
-                {
-                    rowMap[columns_[i]] = row[i];
-                }
-                result.push_back(rowMap);
-            }
-        }
-        else if (op == "=" && op == "!=")
+        switch (ct)
         {
-            if (MiniDB::compare(cell, op, value))
-            {
-                std::map<std::string, std::string> rowMap;
-                for (size_t i = 0; i < columns_.size(); ++i)
-                {
-                    rowMap[columns_[i]] = row[i];
-                }
-                result.push_back(rowMap);
-            }
-        }
-        else
+        case ColumnType::String:
+            if (op == "==" || op == "!=")
+                match = MiniDB::compareString(cell, op, value);
+            break;
+        case ColumnType::Int:
         {
-            continue;
+            if (!rhsParsed)
+                break;
+            int cellInt = 0; // left hand side
+            if (!tryParseInt(cell, cellInt))
+                break;
+            match = MiniDB::compareNumeric(cellInt, op, rhsI);
+            break;
+        }
+
+        case ColumnType::Float:
+        {
+            if (!rhsParsed)
+                break;
+            double cellFloat = 0.0; // left hand side
+            if (!tryParseFloat(cell, cellFloat))
+                break;
+            match = MiniDB::compareNumeric(cellFloat, op, rhsF);
+            break;
+        }
+
+        default:
+            break;
+        }
+
+        if (match)
+        {
+            std::map<std::string, std::string> rowMap;
+            for (size_t i = 0; i < columns_.size(); ++i)
+                rowMap[columns_[i]] = row[i];
+
+            result.push_back(rowMap);
         }
     }
     return result;
@@ -364,7 +382,7 @@ std::vector<std::map<std::string, std::string>> MiniDB::selectWhereFromDisk(
                 int rowValue = std::stoi(values[colIndex]);
                 int targetValue = std::stoi(value);
 
-                if (MiniDB::compare(rowValue, op, targetValue))
+                if (MiniDB::compareNumeric(rowValue, op, targetValue))
                 {
                     std::map<std::string, std::string> rowMap;
                     for (size_t i = 0; i < fileColumns.size(); ++i)
@@ -376,7 +394,7 @@ std::vector<std::map<std::string, std::string>> MiniDB::selectWhereFromDisk(
             }
             else if (op == "=" || op == "!=")
             {
-                if (MiniDB::compare(values[colIndex], op, value))
+                if (MiniDB::compareString(values[colIndex], op, value))
                 {
                     std::map<std::string, std::string> rowMap;
                     for (size_t i = 0; i < fileColumns.size(); ++i)
@@ -429,14 +447,14 @@ void MiniDB::updateWhereFromMemory(const std::string &column,
             int rowValue = std::stoi(cell);
             int targetValue = std::stoi(value);
 
-            if (!MiniDB::compare(rowValue, op, targetValue))
+            if (!MiniDB::compareNumeric(rowValue, op, targetValue))
             {
                 continue;
             }
         }
         else if (op == "=" || op == "!=")
         {
-            if (!MiniDB::compare(cell, op, value))
+            if (!MiniDB::compareString(cell, op, value))
             {
                 continue;
             }
@@ -445,7 +463,6 @@ void MiniDB::updateWhereFromMemory(const std::string &column,
         {
             continue;
         }
-
         for (const auto &[key, newValue] : updateMap)
         {
             auto updateIt = std::find(columns_.begin(), columns_.end(), key);
@@ -517,11 +534,11 @@ void MiniDB::updateWhereFromDisk(const std::string &column,
             int rowValue = std::stoi(cellValue);
             int targetValue = std::stoi(value);
 
-            shouldUpdate = MiniDB::compare(rowValue, op, targetValue);
+            shouldUpdate = MiniDB::compareNumeric(rowValue, op, targetValue);
         }
         else if (op == "=" || op == "!=")
         {
-            shouldUpdate = MiniDB::compare(cellValue, op, value);
+            shouldUpdate = MiniDB::compareString(cellValue, op, value);
         }
         else
         {
@@ -578,11 +595,11 @@ void MiniDB::deleteWhereFromMemory(const std::string &column,
                 int rowVal = std::stoi(cell);
                 int cmpVal = std::stoi(value);
 
-                return MiniDB::compare(rowVal, op, cmpVal);
+                return MiniDB::compareNumeric(rowVal, op, cmpVal);
             }
             else if (op == "=" || op == "!=")
             {
-                return MiniDB::compare(cell, op, value);
+                return MiniDB::compareString(cell, op, value);
             }
             else
             {
@@ -651,11 +668,11 @@ void MiniDB::deleteWhereFromDisk(const std::string &column,
             int rowVal = std::stoi(cellValue);
             int cmpVal = std::stoi(value);
 
-            shouldDelete = MiniDB::compare(rowVal, op, cmpVal);
+            shouldDelete = MiniDB::compareNumeric(rowVal, op, cmpVal);
         }
         else if (op == "=" || op == "!=")
         {
-            shouldDelete = MiniDB::compare(cellValue, op, value);
+            shouldDelete = MiniDB::compareString(cellValue, op, value);
         }
         else
         {
@@ -1008,6 +1025,40 @@ bool MiniDB::isOpAllowedForType(const std::string &op, ColumnType t)
         return false;
 
     return (t == MiniDB::ColumnType::Int || t == MiniDB::ColumnType::Float);
+}
+
+bool MiniDB::tryParseInt(const std::string &str, int &out)
+{
+    if (!NumberValidator::isSignedInteger(str))
+        return false;
+    try
+    {
+        out = std::stoi(str);
+        return true;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << '\n';
+        return false;
+    }
+    return false;
+}
+
+bool MiniDB::tryParseFloat(const std::string &str, double &out)
+{
+    if (!NumberValidator::isFloatingPoint(str))
+        return false;
+    try
+    {
+        out = std::stof(str);
+        return true;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << '\n';
+        return false;
+    }
+    return false;
 }
 
 bool NumberValidator::isPureInteger(const std::string &str)
