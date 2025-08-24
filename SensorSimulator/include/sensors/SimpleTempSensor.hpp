@@ -11,17 +11,26 @@ namespace sensor
     {
     public:
         // Constructor: initializes with a given sensor specification and seeds the RNG
-        explicit SimpleTempSensor(const SensorSpec &spec) : spec_(spec), seq_(0)
+        explicit SimpleTempSensor(const SensorSpec &spec)
+            : spec_(spec),
+              seq_(0),
+              rng_(),
+              gaussian_sigma_(0.0),
+              dist_(0.0, 1.0),
+              stuck_until_ms_(std::numeric_limits<int64_t>::max())
         {
-            rng_.seed(0); // Fixed seed for deterministic noise
         }
-
         // Resets the sensor state and reseeds the random number generator
         void reset(uint64_t seed) override
         {
-            seq_ = 0;             // Reset sample sequence counter
-            rng_.seed(seed);      // Reseed RNG for new noise pattern
-            stuck_untik_ms_ = -1; // Reset fault state (not yet implemented)
+            seq_ = 0;
+            rng_.seed(seed);
+
+            gaussian_sigma_ = spec_.noise.gaussian_sigma;
+            dist_ = std::normal_distribution<double>(0.0, gaussian_sigma_);
+            dist_.reset();
+
+            stuck_until_ms_ = std::numeric_limits<int64_t>::max();
         }
 
         // Generates the next sensor sample for the given timestamp
@@ -43,10 +52,9 @@ namespace sensor
             }
 
             // Add Gaussian noise if enabled
-            if (spec_.noise.gaussian_sigma > 0.0)
+            if (gaussian_sigma_ > 0.0)
             {
-                std::normal_distribution<double> dist(0.0, spec_.noise.gaussian_sigma); // N(0, sigma)
-                v += dist(rng_);                                                        // Add random noise to the signal
+                v += dist_(rng_); // Add random noise to the signal
             }
 
             s.value = v; // Final computed sensor value
@@ -72,9 +80,11 @@ namespace sensor
         }
 
     private:
-        SensorSpec spec_;              // Sensor configuration parameters
-        uint64_t seq_;                 // Sample sequence counter
-        std::mt19937_64 rng_;          // 64-bit Mersenne Twister RNG
-        uint64_t stuck_untik_ms_ = -1; // Fault simulation placeholder (e.g. stuck state)
+        SensorSpec spec_; // Sensor configuration parameters
+        uint64_t seq_;    // Sample sequence counter
+        std::mt19937_64 rng_;
+        double gaussian_sigma_;
+        std::normal_distribution<double> dist_;
+        int64_t stuck_until_ms_; // Fault simulation placeholder (e.g. stuck state)
     };
 } // namespace sensor
