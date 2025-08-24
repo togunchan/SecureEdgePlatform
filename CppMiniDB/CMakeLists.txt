@@ -17,9 +17,6 @@ target_include_directories(minidb
     ${PROJECT_SOURCE_DIR}/../third_party/json/single_include
 )
 
-# Add Catch2
-add_subdirectory(../third_party/Catch2 Catch2-build)
-
 # Test executable
 add_executable(test_minidb tests/test_minidb.cpp)
 
