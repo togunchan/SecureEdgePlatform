@@ -24,4 +24,4 @@ namespace sensor
         virtual std::string id() const = 0;   // e.g., "TEMP-01"
         virtual std::string type() const = 0; // e.g., "TEMP", "PRES", "IMU-AXIS"
     };
-}
+} // namespace sensor
