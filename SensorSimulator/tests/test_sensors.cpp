@@ -42,3 +42,47 @@ TEST_CASE("SimpleTempSensor exposes rate and identity", "[sensor][api]")
     REQUIRE(s.id() == "TEMP-01");
     REQUIRE(s.type() == "TEMP");
 }
+
+TEST_CASE("SimpleTempSensor: 100% dropout yields NaN and quality flag", "[sensor][fault][dropout]")
+{
+    SensorSpec spec;
+    spec.id = "TEMP-01";
+    spec.type = "TEMP";
+    spec.rate_hz = 10;
+    spec.base = "constant";
+    spec.base_level = 25.0;
+    spec.noise.gaussian_sigma = 0.0;
+    spec.fault.dropout_prob = 1.0;
+
+    SimpleTempSensor s(spec);
+    s.reset(42);
+
+    for (int i = 0; i < 5; ++i)
+    {
+        auto smp = s.nextSample(1000 + i * 100);
+        REQUIRE((smp.quality & QF_DROPOUT) != 0);
+        REQUIRE(std::isnan(smp.value));
+    }
+}
+
+TEST_CASE("SimpleTempSensor: 0% dropout produces normal samples", "[sensor][fault][dropout]")
+{
+    SensorSpec spec;
+    spec.id = "TEMP-02";
+    spec.type = "TEMP";
+    spec.rate_hz = 10;
+    spec.base = "constant";
+    spec.base_level = 25.0;
+    spec.noise.gaussian_sigma = 0.0;
+    spec.fault.dropout_prob = 0.0;
+
+    SimpleTempSensor s(spec);
+    s.reset(7);
+
+    for (int i = 0; i < 5; ++i)
+    {
+        auto smp = s.nextSample(2000 + i * 100);
+        REQUIRE((smp.quality & QF_DROPOUT) == 0);
+        REQUIRE_FALSE(std::isnan(smp.value));
+    }
+}

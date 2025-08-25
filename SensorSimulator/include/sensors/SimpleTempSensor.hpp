@@ -17,6 +17,7 @@ namespace sensor
               rng_(),
               gaussian_sigma_(0.0),
               dist_(0.0, 1.0),
+              dropout_dist_(0.0),
               stuck_until_ms_(std::numeric_limits<int64_t>::max())
         {
         }
@@ -30,6 +31,13 @@ namespace sensor
             dist_ = std::normal_distribution<double>(0.0, gaussian_sigma_);
             dist_.reset();
 
+            double p = spec_.fault.dropout_prob;
+            if (p < 0.0)
+                p = 0.0;
+            if (p > 1.0)
+                p = 1.0;
+            dropout_dist_ = std::bernoulli_distribution(p);
+
             stuck_until_ms_ = std::numeric_limits<int64_t>::max();
         }
 
@@ -42,6 +50,15 @@ namespace sensor
             s.id = spec_.id;     // Sensor ID (e.g. "TEMP-01")
             s.type = spec_.type; // Sensor type (e.g. "TEMP")
             s.quality = 0;       // Placeholder for quality metric
+
+            // dropout generation
+            const bool dropout = dropout_dist_(rng_);
+            if (dropout)
+            {
+                s.quality |= QF_DROPOUT; // Set the dropout bit in the quality
+                s.value = std::numeric_limits<double>::quiet_NaN();
+                return s;
+            }
 
             // Base signal generation: constant or sine wave
             double v = spec_.base_level; // Start with base level
@@ -85,6 +102,7 @@ namespace sensor
         std::mt19937_64 rng_;
         double gaussian_sigma_;
         std::normal_distribution<double> dist_;
+        std::bernoulli_distribution dropout_dist_;
         int64_t stuck_until_ms_; // Fault simulation placeholder (e.g. stuck state)
     };
 } // namespace sensor
