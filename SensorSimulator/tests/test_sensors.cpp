@@ -2,6 +2,7 @@
 #include <catch2/catch_all.hpp>
 #include "sensors/SimpleTempSensor.hpp"
 #include <iostream>
+#include <cmath>
 
 using namespace sensor;
 
@@ -105,4 +106,119 @@ TEST_CASE("Spike alyaws on when prob = 1", "[sensor][fault][spike]")
     auto smp = s.nextSample(1000);
     REQUIRE((smp.quality & QF_SPIKE) != 0);
     REQUIRE(smp.value == Catch::Approx(25.0));
+}
+
+// Note: Declared as 'static' so that this helper is visible only within this
+// translation unit (test_sensors.cpp). This prevents global symbol pollution
+// and avoids potential linker conflicts if other test files also define a
+// makeDefaultSpec() function.
+static SensorSpec makeDefaultSpec()
+{
+    SensorSpec spec;
+    spec.id = "TEMP-01";
+    spec.type = "TEMP";
+    spec.rate_hz = 10;
+    spec.base = "sine";
+    spec.base_level = 25.0;
+    spec.sine_amp = 2.0;
+    spec.sine_freq_hz = 0.5;
+    spec.noise.gaussian_sigma = 0.0;
+    spec.fault.dropout_prob = 0.0;
+    spec.fault.spike_prob = 0.0;
+    spec.fault.spike_mag = 0.0;
+    return spec;
+}
+
+TEST_CASE("Dropout dominates over spike", "[sensor][fault][dropout][spike]")
+{
+    auto spec = makeDefaultSpec();
+    spec.fault.dropout_prob = 1.0;
+    spec.fault.spike_prob = 1.0;
+    spec.fault.spike_mag = 5.0;
+
+    SimpleTempSensor s(spec);
+    s.reset(123);
+
+    auto sample = s.nextSample(1'000);
+
+    REQUIRE(std::isnan(sample.value));
+    REQUIRE((sample.quality & QF_DROPOUT) != 0);
+    REQUIRE((sample.quality & QF_SPIKE) == 0);
+}
+
+// At t=1000ms with f=0.5Hz, the sine wave term equals sin(pi)=0.
+// This means the sine component contributes nothing, so the output
+// should be exactly: base_level (+spike, +noise if enabled).
+// Using this time point isolates the effect of spike/noise from the sine.
+TEST_CASE("Spike applied without noise at t=1000ms (sin term is zero)", "[sensor][fault][spike]")
+{
+    auto spec = makeDefaultSpec();
+    spec.fault.spike_prob = 1.0;
+    spec.fault.spike_mag = 3.5;
+    spec.noise.gaussian_sigma = 0.0;
+    spec.fault.dropout_prob = 0.0;
+
+    SimpleTempSensor s(spec);
+    s.reset(42);
+
+    auto sample = s.nextSample(1'000);
+    double expected = 25.0 + 3.5;
+
+    REQUIRE(sample.value == Catch::Approx(expected));
+    REQUIRE((sample.quality & QF_SPIKE) != 0);
+    REQUIRE((sample.quality & QF_DROPOUT) == 0);
+}
+
+TEST_CASE("No spike when spike_prob=0, no dropout, no noise", "[sensor][fault][spike]")
+{
+    auto spec = makeDefaultSpec();
+    spec.fault.spike_prob = 0.0;
+    spec.fault.dropout_prob = 0.0;
+    spec.noise.gaussian_sigma = 0.0;
+
+    SimpleTempSensor s(spec);
+    s.reset(7);
+
+    auto sample = s.nextSample(1'000); // base = 25.0
+    REQUIRE(sample.value == 25.0);
+    REQUIRE((sample.quality & QF_SPIKE) == 0);
+    REQUIRE((sample.quality & QF_DROPOUT) == 0);
+}
+
+TEST_CASE("Spike always vs never across many samples", "[sensor][fault][spike][prob]")
+{
+    {
+        auto spec = makeDefaultSpec();
+        spec.fault.spike_prob = 1.0;
+        spec.fault.spike_mag = 1.0;
+        spec.noise.gaussian_sigma = 0.0;
+        spec.fault.dropout_prob = 0.0;
+
+        SimpleTempSensor s(spec);
+        s.reset(99);
+
+        for (int i = 0; i < 20; ++i)
+        {
+            auto sample = s.nextSample(1'000 + i * 100);
+            REQUIRE((sample.quality & QF_SPIKE) != 0);
+            REQUIRE_FALSE(std::isnan(sample.value));
+        }
+    }
+
+    {
+        auto spec = makeDefaultSpec();
+        spec.fault.spike_prob = 0.0;
+        spec.noise.gaussian_sigma = 0.0;
+        spec.fault.dropout_prob = 0.0;
+
+        SimpleTempSensor s(spec);
+        s.reset(100);
+
+        for (int i = 0; i < 20; ++i)
+        {
+            auto sample = s.nextSample(1'000 + i * 100);
+            REQUIRE((sample.quality & QF_SPIKE) == 0);
+            REQUIRE_FALSE(std::isnan(sample.value));
+        }
+    }
 }
