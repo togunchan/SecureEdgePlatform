@@ -16,6 +16,7 @@ namespace sensor
         double spike_prob = 0.0;   // probability of a random spike
         double dropout_prob = 0.0; // probabilty of missing sample
         int stuck_duration_ms = 0; // if > 0, sensor can get "stuck" for this long
+        double spike_mag = 0.0;    // if > 0, spike will be a random value in [-mag, mag]. "mag" stands for magnitude
     };
 
     struct SensorSpec

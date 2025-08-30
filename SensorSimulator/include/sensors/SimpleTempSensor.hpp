@@ -18,7 +18,8 @@ namespace sensor
               gaussian_sigma_(0.0),
               dist_(0.0, 1.0),
               dropout_dist_(0.0),
-              stuck_until_ms_(std::numeric_limits<int64_t>::max())
+              stuck_until_ms_(std::numeric_limits<int64_t>::max()),
+              spike_dist_(0.0)
         {
         }
         // Resets the sensor state and reseeds the random number generator
@@ -39,6 +40,13 @@ namespace sensor
             dropout_dist_ = std::bernoulli_distribution(p);
 
             stuck_until_ms_ = std::numeric_limits<int64_t>::max();
+
+            double spike_prob = spec_.fault.spike_prob;
+            if (spike_prob < 0.0)
+                spike_prob = 0.0;
+            if (spike_prob > 1.0)
+                spike_prob = 1.0;
+            spike_dist_ = std::bernoulli_distribution(spike_prob);
         }
 
         // Generates the next sensor sample for the given timestamp
@@ -66,6 +74,12 @@ namespace sensor
             {
                 const double t = now_ms / 1000.0;                                    // Convert time to seconds
                 v += spec_.sine_amp * std::sin(2.0 * M_PI * spec_.sine_freq_hz * t); // Add sine wave component
+            }
+
+            if (spike_dist_(rng_) && spec_.fault.spike_mag != 0.0)
+            {
+                s.quality = QF_SPIKE;
+                v += spec_.fault.spike_mag;
             }
 
             // Add Gaussian noise if enabled
@@ -104,5 +118,6 @@ namespace sensor
         std::normal_distribution<double> dist_;
         std::bernoulli_distribution dropout_dist_;
         int64_t stuck_until_ms_; // Fault simulation placeholder (e.g. stuck state)
+        std::bernoulli_distribution spike_dist_;
     };
 } // namespace sensor
