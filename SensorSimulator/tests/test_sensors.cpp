@@ -86,3 +86,23 @@ TEST_CASE("SimpleTempSensor: 0% dropout produces normal samples", "[sensor][faul
         REQUIRE_FALSE(std::isnan(smp.value));
     }
 }
+
+TEST_CASE("Spike alyaws on when prob = 1", "[sensor][fault][spike]")
+{
+    SensorSpec spec;
+    spec.id = "TEMP-01";
+    spec.type = "TEMP";
+    spec.rate_hz = 1;
+    spec.base = "constant";
+    spec.base_level = 20.0;
+    spec.noise.gaussian_sigma = 0.0;
+    spec.fault.dropout_prob = 0.0;
+    spec.fault.spike_prob = 1.0;
+    spec.fault.spike_mag = 5.0;
+
+    SimpleTempSensor s(spec);
+    s.reset(42);
+    auto smp = s.nextSample(1000);
+    REQUIRE((smp.quality & QF_SPIKE) != 0);
+    REQUIRE(smp.value == Catch::Approx(25.0));
+}
