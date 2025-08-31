@@ -15,8 +15,12 @@ namespace sensor
     {
         double spike_prob = 0.0;   // probability of a random spike
         double dropout_prob = 0.0; // probabilty of missing sample
-        int stuck_duration_ms = 0; // if > 0, sensor can get "stuck" for this long
         double spike_mag = 0.0;    // if > 0, spike will be a random value in [-mag, mag]. "mag" stands for magnitude
+
+        // stuck fault
+        double stuck_prob = 0.0;
+        uint64_t stuck_min_ms = 0;
+        uint64_t stuck_max_ms = 0;
     };
 
     struct SensorSpec
@@ -33,4 +37,29 @@ namespace sensor
         double sine_amp = 0.0;
         double sine_freq_hz = 0.0;
     };
+
+    static inline SensorSpec makeDefaultSpec()
+    {
+        SensorSpec s;
+        s.id = "TEMP-01";
+        s.type = "TEMP";
+        s.rate_hz = 10;
+
+        s.base = "sine";
+        s.base_level = 25.0;
+        s.sine_amp = 2.0;
+        s.sine_freq_hz = 0.5;
+
+        s.noise.gaussian_sigma = 0.0;
+
+        s.fault.dropout_prob = 0.0;
+        s.fault.spike_prob = 0.0;
+        s.fault.spike_mag = 0.0;
+
+        s.fault.stuck_prob = 0.0;
+        s.fault.stuck_min_ms = 0;
+        s.fault.stuck_max_ms = 0;
+
+        return s;
+    }
 } // namespace sensor
