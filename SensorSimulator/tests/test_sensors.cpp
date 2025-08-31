@@ -112,22 +112,22 @@ TEST_CASE("Spike alyaws on when prob = 1", "[sensor][fault][spike]")
 // translation unit (test_sensors.cpp). This prevents global symbol pollution
 // and avoids potential linker conflicts if other test files also define a
 // makeDefaultSpec() function.
-static SensorSpec makeDefaultSpec()
-{
-    SensorSpec spec;
-    spec.id = "TEMP-01";
-    spec.type = "TEMP";
-    spec.rate_hz = 10;
-    spec.base = "sine";
-    spec.base_level = 25.0;
-    spec.sine_amp = 2.0;
-    spec.sine_freq_hz = 0.5;
-    spec.noise.gaussian_sigma = 0.0;
-    spec.fault.dropout_prob = 0.0;
-    spec.fault.spike_prob = 0.0;
-    spec.fault.spike_mag = 0.0;
-    return spec;
-}
+// static SensorSpec makeDefaultSpec()
+// {
+//     SensorSpec spec;
+//     spec.id = "TEMP-01";
+//     spec.type = "TEMP";
+//     spec.rate_hz = 10;
+//     spec.base = "sine";
+//     spec.base_level = 25.0;
+//     spec.sine_amp = 2.0;
+//     spec.sine_freq_hz = 0.5;
+//     spec.noise.gaussian_sigma = 0.0;
+//     spec.fault.dropout_prob = 0.0;
+//     spec.fault.spike_prob = 0.0;
+//     spec.fault.spike_mag = 0.0;
+//     return spec;
+// }
 
 TEST_CASE("Dropout dominates over spike", "[sensor][fault][dropout][spike]")
 {
@@ -221,4 +221,54 @@ TEST_CASE("Spike always vs never across many samples", "[sensor][fault][spike][p
             REQUIRE_FALSE(std::isnan(sample.value));
         }
     }
+}
+
+TEST_CASE("Stuck freezes value within windows", "[sensor][fault][stuck]")
+{
+    SensorSpec spec = makeDefaultSpec();
+    spec.base = "constant";
+    spec.base_level = 25.0;
+    spec.noise.gaussian_sigma = 0.0;
+    spec.fault.dropout_prob = 0.0;
+    spec.fault.spike_prob = 0.0;
+
+    spec.fault.stuck_prob = 1.0;
+    spec.fault.stuck_min_ms = 3000;
+    spec.fault.stuck_max_ms = 3000;
+
+    SimpleTempSensor s(spec);
+    s.reset(123);
+
+    auto a = s.nextSample(500);
+    auto b = s.nextSample(1000);
+    auto c = s.nextSample(2500);
+    auto d = s.nextSample(4000);
+
+    REQUIRE(std::isfinite(a.value));
+    REQUIRE(b.quality & QF_STUCK);
+    REQUIRE(c.quality & QF_STUCK);
+    REQUIRE(b.value == a.value);
+    REQUIRE(c.value == a.value);
+    REQUIRE_FALSE(d.quality & QF_STUCK);
+}
+
+TEST_CASE("Dropout has precedence over stuck/spike/noise", "[sensor][fault][priority]")
+{
+    SensorSpec spec = makeDefaultSpec();
+    spec.base = "constant";
+    spec.base_level = 10.0;
+    spec.noise.gaussian_sigma = 1.0;
+    spec.fault.dropout_prob = 1.0;
+    spec.fault.spike_prob = 1.0;
+    spec.fault.spike_mag = 5.0;
+    spec.fault.stuck_prob = 1.0;
+    spec.fault.stuck_min_ms = 1000;
+    spec.fault.stuck_max_ms = 1000;
+
+    SimpleTempSensor s(spec);
+    s.reset(42);
+
+    auto x = s.nextSample(1000);
+    REQUIRE(x.quality & QF_DROPOUT);
+    REQUIRE(std::isnan(x.value));
 }
