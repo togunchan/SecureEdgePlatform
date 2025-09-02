@@ -49,6 +49,13 @@ namespace sensor
             uint64_t hi = std::max(spec_.fault.stuck_min_ms, spec_.fault.stuck_max_ms);
             stuck_duration_dist_ = std::uniform_int_distribution<int64_t>(lo, hi);
 
+            // Uniform noise setup
+            double r = spec_.noise.uniform_range;
+            uniform_dist_ = std::uniform_real_distribution<double>(-r, +r);
+
+            // Drift setup
+            drift_per_sample_ = spec_.noise.drift_ppm * spec_.base_level / 1'000'000.0;
+
             stuck_until_ms_ = -1;
             last_value_ = std::numeric_limits<double>::quiet_NaN();
         }
@@ -80,17 +87,13 @@ namespace sensor
                 v += spec_.sine_amp * std::sin(2.0 * M_PI * spec_.sine_freq_hz * t); // Add sine wave component
             }
 
+            v += generateNoise(now_ms); // Add noise
+
             // spike
             if (spike_dist_(rng_) && spec_.fault.spike_mag != 0.0)
             {
                 s.quality |= QF_SPIKE;
                 v += spec_.fault.spike_mag;
-            }
-
-            // Add Gaussian noise if enabled
-            if (gaussian_sigma_ > 0.0)
-            {
-                v += dist_(rng_); // Add random noise to the signal
             }
 
             // stuck
@@ -147,11 +150,35 @@ namespace sensor
             return spec_.type;
         }
 
+        double generateNoise(int64_t now_ms)
+        {
+            double noise = 0.0;
+
+            // Add Gaussian noise if enabled
+            if (gaussian_sigma_ > 0.0)
+            {
+                noise += dist_(rng_); // Add random noise to the signal
+            }
+
+            // Add uniform noise if enabled
+            if (spec_.noise.uniform_range > 0.0)
+            {
+                noise += uniform_dist_(rng_);
+            }
+
+            // Add drift if enabled
+            if (spec_.noise.drift_ppm > 0.0)
+            {
+                noise += drift_per_sample_;
+            }
+
+            return noise;
+        }
+
     private:
         SensorSpec spec_; // Sensor configuration parameters
         uint64_t seq_;    // Sample sequence counter
         std::mt19937_64 rng_;
-        double gaussian_sigma_;
         std::normal_distribution<double> dist_;
         std::bernoulli_distribution dropout_dist_;
         int64_t stuck_until_ms_; // Fault simulation placeholder (e.g. stuck state)
@@ -160,5 +187,8 @@ namespace sensor
         std::uniform_int_distribution<int64_t> stuck_duration_dist_{static_cast<int64_t>(0)};
         double last_value_ = std::numeric_limits<double>::quiet_NaN();
         bool was_stuck_prev = false;
+        double gaussian_sigma_;
+        std::uniform_real_distribution<double> uniform_dist_;
+        double drift_per_sample_ = 0.0;
     };
 } // namespace sensor
