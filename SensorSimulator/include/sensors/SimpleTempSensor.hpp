@@ -42,6 +42,11 @@ namespace sensor
             double spike_prob = std::clamp(spec_.fault.spike_prob, 0.0, 1.0);
             spike_dist_ = std::bernoulli_distribution(spike_prob);
 
+            if (spec_.fault.spike_sigma > 0.0)
+            {
+                spike_gauss_dist_ = std::normal_distribution<double>(0.0, spec_.fault.spike_sigma);
+            }
+
             // stuck
             double stuck_prob = std::clamp(spec_.fault.stuck_prob, 0.0, 1.0);
             stuck_prob_dist_ = std::bernoulli_distribution(stuck_prob);
@@ -114,6 +119,7 @@ namespace sensor
         double gaussian_sigma_;
         std::uniform_real_distribution<double> uniform_dist_;
         double drift_per_sample_ = 0.0;
+        std::normal_distribution<double> spike_gauss_dist_;
 
         Sample initializeSample(int64_t now_ms)
         {
@@ -186,12 +192,22 @@ namespace sensor
 
         void applySpike(Sample &s, double &v)
         {
-            if (spike_dist_(rng_) && spec_.fault.spike_mag != 0.0)
+            if (!spike_dist_(rng_))
+                return;
+
+            s.quality |= QF_SPIKE;
+
+            if (spec_.fault.spike_sigma > 0.0)
             {
-                s.quality |= QF_SPIKE;
-                v += spec_.fault.spike_mag;
+                v += spike_gauss_dist_(rng_);
+            }
+            else if (spec_.fault.spike_mag > 0.0)
+            {
+                double spike = (2.0 * spec_.fault.spike_mag) * ((rng_() / (double)rng_.max()) - 0.5);
+                v += spike;
             }
         }
+
         double generateNoise()
         {
             double noise = 0.0;
@@ -216,4 +232,5 @@ namespace sensor
 
             return noise;
         }
-    }; // namespace senso
+    };
+}; // namespace senso

@@ -16,6 +16,7 @@ namespace sensor
         double spike_prob = 0.0;   // probability of a random spike
         double dropout_prob = 0.0; // probabilty of missing sample
         double spike_mag = 0.0;    // if > 0, spike will be a random value in [-mag, mag]. "mag" stands for magnitude
+        double spike_sigma = 0.0;  // if > 0, spike will be a random value in [-sigma, sigma]
 
         // stuck fault
         double stuck_prob = 0.0;
@@ -55,6 +56,7 @@ namespace sensor
         s.fault.dropout_prob = 0.0;
         s.fault.spike_prob = 0.0;
         s.fault.spike_mag = 0.0;
+        s.fault.spike_sigma = 0.0;
 
         s.fault.stuck_prob = 0.0;
         s.fault.stuck_min_ms = 0;
