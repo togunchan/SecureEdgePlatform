@@ -63,70 +63,19 @@ namespace sensor
         // Generates the next sensor sample for the given timestamp
         Sample nextSample(int64_t now_ms) override
         {
-            Sample s{};          // Create a new sample
-            s.ts = now_ms;       // Timestamp in milliseconds
-            s.seq = ++seq_;      // Increment and assign sequence number
-            s.id = spec_.id;     // Sensor ID (e.g. "TEMP-01")
-            s.type = spec_.type; // Sensor type (e.g. "TEMP")
-            s.quality = 0;       // Placeholder for quality metric
 
-            // dropout generation
-            const bool dropout = dropout_dist_(rng_);
-            if (dropout)
-            {
-                s.quality |= QF_DROPOUT;
-                s.value = std::numeric_limits<double>::quiet_NaN();
+            Sample s = initializeSample(now_ms);
+            if (applyDropout(s))
                 return s;
-            }
 
-            // Base signal generation: constant or sine wave
-            double v = spec_.base_level; // Start with base level
-            if (spec_.base == "sine" && spec_.sine_amp != 0.0 && spec_.sine_freq_hz > 0.0)
-            {
-                const double t = now_ms / 1000.0;                                    // Convert time to seconds
-                v += spec_.sine_amp * std::sin(2.0 * M_PI * spec_.sine_freq_hz * t); // Add sine wave component
-            }
+            double v = generateBaseSignal(now_ms);
 
-            v += generateNoise(now_ms); // Add noise
-
-            // spike
-            if (spike_dist_(rng_) && spec_.fault.spike_mag != 0.0)
-            {
-                s.quality |= QF_SPIKE;
-                v += spec_.fault.spike_mag;
-            }
-
-            // stuck
-            if (stuck_until_ms_ >= 0 && now_ms < stuck_until_ms_)
-            {
-                s.quality |= QF_STUCK;
-                s.value = last_value_;
-                was_stuck_prev = true;
-                std::cout << "[STUCK active] now=" << now_ms
-                          << " until=" << stuck_until_ms_
-                          << " value=" << last_value_ << "\n";
+            if (applyStuck(s, v, now_ms))
                 return s;
-            }
 
-            const bool allow_new_stuck_trial = !was_stuck_prev;
-            was_stuck_prev = false;
+            applySpike(s, v);
 
-            if ((stuck_until_ms_ < 0 || now_ms > stuck_until_ms_) && allow_new_stuck_trial && (spec_.fault.stuck_min_ms + spec_.fault.stuck_max_ms > 0) &&
-                stuck_prob_dist_(rng_))
-            {
-                int64_t dur = stuck_duration_dist_(rng_);
-                if (dur > 0)
-                {
-                    stuck_until_ms_ = now_ms + dur;
-                    last_value_ = v;
-                    s.quality |= QF_STUCK;
-                    s.value = last_value_;
-                    std::cout << "[STUCK start] now=" << now_ms
-                              << " dur=" << dur
-                              << " until=" << stuck_until_ms_ << "\n";
-                    return s;
-                }
-            }
+            v += generateNoise();
 
             s.value = v; // Final computed sensor value
             return s;    // Return the sample
@@ -150,7 +99,100 @@ namespace sensor
             return spec_.type;
         }
 
-        double generateNoise(int64_t now_ms)
+    private:
+        SensorSpec spec_; // Sensor configuration parameters
+        uint64_t seq_;    // Sample sequence counter
+        std::mt19937_64 rng_;
+        std::normal_distribution<double> dist_;
+        std::bernoulli_distribution dropout_dist_;
+        int64_t stuck_until_ms_; // Fault simulation placeholder (e.g. stuck state)
+        std::bernoulli_distribution spike_dist_;
+        std::bernoulli_distribution stuck_prob_dist_{0.0};
+        std::uniform_int_distribution<int64_t> stuck_duration_dist_{static_cast<int64_t>(0)};
+        double last_value_ = std::numeric_limits<double>::quiet_NaN();
+        bool was_stuck_prev = false;
+        double gaussian_sigma_;
+        std::uniform_real_distribution<double> uniform_dist_;
+        double drift_per_sample_ = 0.0;
+
+        Sample initializeSample(int64_t now_ms)
+        {
+            Sample s{};          // Create a new sample
+            s.ts = now_ms;       // Timestamp in milliseconds
+            s.seq = ++seq_;      // Increment and assign sequence number
+            s.id = spec_.id;     // Sensor ID (e.g. "TEMP-01")
+            s.type = spec_.type; // Sensor type (e.g. "TEMP")
+            s.quality = 0;       // Placeholder for quality metric
+            return s;
+        }
+
+        bool applyDropout(Sample &s)
+        {
+            const bool dropout = dropout_dist_(rng_);
+            if (dropout)
+            {
+                s.quality |= QF_DROPOUT;
+                s.value = std::numeric_limits<double>::quiet_NaN();
+                return true;
+            }
+            return false;
+        }
+
+        double generateBaseSignal(int64_t now_ms)
+        {
+            double v = spec_.base_level;
+            if (spec_.base == "sine" && spec_.sine_amp != 0.0 && spec_.sine_freq_hz > 0.0)
+            {
+                const double t = now_ms / 1000.0;
+                v += spec_.sine_amp * std::sin(2.0 * M_PI * spec_.sine_freq_hz * t);
+            }
+            return v;
+        }
+
+        bool applyStuck(Sample &s, double v, int64_t now_ms)
+        {
+            if (stuck_until_ms_ >= 0 && now_ms < stuck_until_ms_)
+            {
+                s.quality |= QF_STUCK;
+                s.value = last_value_;
+                was_stuck_prev = true;
+                std::cout << "[STUCK active] now=" << now_ms
+                          << " until=" << stuck_until_ms_
+                          << " value=" << last_value_ << "\n";
+                return true;
+            }
+
+            const bool allow_new_stuck_trial = !was_stuck_prev;
+            was_stuck_prev = false;
+
+            if ((stuck_until_ms_ < 0 || now_ms > stuck_until_ms_) && allow_new_stuck_trial && (spec_.fault.stuck_min_ms + spec_.fault.stuck_max_ms > 0) &&
+                stuck_prob_dist_(rng_))
+            {
+                int64_t dur = stuck_duration_dist_(rng_);
+                if (dur > 0)
+                {
+                    stuck_until_ms_ = now_ms + dur;
+                    last_value_ = v;
+                    s.quality |= QF_STUCK;
+                    s.value = last_value_;
+                    std::cout << "[STUCK start] now=" << now_ms
+                              << " dur=" << dur
+                              << " until=" << stuck_until_ms_ << "\n";
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        void applySpike(Sample &s, double &v)
+        {
+            if (spike_dist_(rng_) && spec_.fault.spike_mag != 0.0)
+            {
+                s.quality |= QF_SPIKE;
+                v += spec_.fault.spike_mag;
+            }
+        }
+        double generateNoise()
         {
             double noise = 0.0;
 
@@ -174,21 +216,4 @@ namespace sensor
 
             return noise;
         }
-
-    private:
-        SensorSpec spec_; // Sensor configuration parameters
-        uint64_t seq_;    // Sample sequence counter
-        std::mt19937_64 rng_;
-        std::normal_distribution<double> dist_;
-        std::bernoulli_distribution dropout_dist_;
-        int64_t stuck_until_ms_; // Fault simulation placeholder (e.g. stuck state)
-        std::bernoulli_distribution spike_dist_;
-        std::bernoulli_distribution stuck_prob_dist_{0.0};
-        std::uniform_int_distribution<int64_t> stuck_duration_dist_{static_cast<int64_t>(0)};
-        double last_value_ = std::numeric_limits<double>::quiet_NaN();
-        bool was_stuck_prev = false;
-        double gaussian_sigma_;
-        std::uniform_real_distribution<double> uniform_dist_;
-        double drift_per_sample_ = 0.0;
-    };
-} // namespace sensor
+    }; // namespace senso
