@@ -14,8 +14,6 @@ target_include_directories(sensor_core
         ${PROJECT_SOURCE_DIR}/include
 )
 
-
-# Test executable
 add_executable(test_sensors
     tests/test_sensors.cpp
 )
@@ -37,3 +35,18 @@ target_link_libraries(test_sensors
 include(CTest)
 include(Catch)
 catch_discover_tests(test_sensors)
+
+# CLI executable
+add_executable(EdgeCLI
+    src/cli/EdgeCLI.cpp
+)
+
+target_include_directories(EdgeCLI
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(EdgeCLI
+    PRIVATE
+        sensor_core
+)
