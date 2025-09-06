@@ -1,0 +1,166 @@
+#include "../../include/cli/EdgeShell.hpp"
+#include <iostream>
+#include <sstream>
+
+using namespace sensor;
+
+static uint64_t global_time = 0;
+
+int main()
+{
+    sensor::EdgeShell shell;
+    shell.run();
+    return 0;
+}
+
+void EdgeShell::run()
+{
+    std::cout << "Welcome to EdgeShell - Multi-Sensor Fault Injector\n";
+    printHelp();
+
+    addDefaultSensor();
+
+    std::string line;
+    while (true)
+    {
+        std::cout << "> ";
+        std::getline(std::cin, line);
+        if (line == "exit")
+            break;
+        handleCommand(line);
+    }
+}
+
+void EdgeShell::printHelp() const
+{
+    std::cout << "Commands:\n"
+              << "  list                     - List all sensors\n"
+              << "  step <id>                - Generate sample\n"
+              << "  inject <type> <id>       - Inject fault (spike/stuck/dropout)\n"
+              << "  reset <id>               - Reset sensor\n"
+              << "  help                     - Show help\n"
+              << "  exit                     - Exit program\n";
+}
+
+void EdgeShell::handleCommand(const std::string &line)
+{
+    std::istringstream iss(line);
+    std::string cmd, arg1, arg2;
+    iss >> cmd >> arg1 >> arg2;
+
+    if (cmd == "list")
+    {
+        listSensors();
+    }
+    else if (cmd == "step")
+    {
+        for (size_t i = 0; i < 20; i++)
+        {
+            stepSensor(arg1);
+        }
+    }
+    else if (cmd == "inject")
+    {
+        injectFault(arg1, arg2);
+    }
+    else if (cmd == "reset")
+    {
+        resetSensor(arg1);
+    }
+    else if (cmd == "help")
+    {
+        printHelp();
+    }
+    else
+    {
+        std::cout << "Unknown command: " << cmd << "\n";
+        printHelp();
+    }
+}
+
+void EdgeShell::addDefaultSensor()
+{
+    SensorSpec spec = makeDefaultSpec();
+    spec.id = "TEMP-001";
+    spec.type = "TEMP";
+    spec.base = "sine";
+    spec.base_level = 25.0;
+    spec.sine_amp = 1.5;
+    spec.sine_freq_hz = 1.0 / 60;
+    spec.noise.gaussian_sigma = 0.2;
+    sensors_["TEMP-001"] = std::make_unique<SimpleTempSensor>(spec);
+}
+
+void EdgeShell::listSensors() const
+{
+    for (const auto &sensor : sensors_)
+    {
+        std::cout << sensor.first << "\n";
+    }
+}
+
+void EdgeShell::stepSensor(const std::string &sensorId)
+{
+    // std::cout << "I am in the stepSensor function\n";
+    if (sensors_.find(sensorId) == sensors_.end())
+    {
+        std::cout << "Sensor not found: " << sensorId << "\n";
+        return;
+    }
+    auto &sensor = sensors_[sensorId];
+    // std::cout << sensor->getSpec().fault.stuck_prob << "\n";
+    auto sample = sensor->nextSample(global_time);
+    global_time += 1000;
+    std::cout << "Sample @ " << global_time << " ms → value: " << sample.value
+              << "\n";
+}
+
+void EdgeShell::injectFault(const std::string &faultType, const std::string &sensorId)
+{
+    if (sensors_.find(sensorId) == sensors_.end())
+    {
+        std::cout << "Sensor not found: " << sensorId << "\n";
+        return;
+    }
+
+    auto &sensor = sensors_[sensorId];
+
+    if (faultType == "spike")
+    {
+        sensor->getSpec().fault.spike_prob = 1.0;
+        sensor->getSpec().fault.spike_mag = 3.0;
+        sensor->getSpec().fault.spike_sigma = 0.5;
+        std::cout << "Injected spike fault on " << sensorId << "\n";
+        sensor->reset(42);
+    }
+    else if (faultType == "stuck")
+    {
+        sensor->getSpec().fault.stuck_prob = 1.0;
+        sensor->getSpec().fault.stuck_min_ms = 1000;
+        sensor->getSpec().fault.stuck_max_ms = 1000;
+        std::cout << "Injected stuck fault on " << sensorId << "\n";
+        sensor->reset(42);
+    }
+    else if (faultType == "dropout")
+    {
+        sensor->getSpec().fault.dropout_prob = 1.0;
+        std::cout << "Injected dropout fault on " << sensorId << "\n";
+        sensor->reset(42);
+    }
+    else
+    {
+        std::cout << "Unknown fault type: " << faultType << "\n";
+    }
+}
+
+void EdgeShell::resetSensor(const std::string &sensorId)
+{
+    if (sensors_.find(sensorId) == sensors_.end())
+    {
+        std::cout << "Sensor not found: " << sensorId << "\n";
+        return;
+    }
+
+    sensors_[sensorId]->reset(42);
+    std::cout << "Sensor reset: " << sensorId << "\n";
+}

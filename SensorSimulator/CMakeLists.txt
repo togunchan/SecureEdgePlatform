@@ -50,3 +50,17 @@ target_link_libraries(EdgeCLI
     PRIVATE
         sensor_core
 )
+
+add_executable(EdgeShell
+    src/cli/EdgeShell.cpp
+)
+
+target_include_directories(EdgeShell
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(EdgeShell
+    PRIVATE
+        sensor_core
+)

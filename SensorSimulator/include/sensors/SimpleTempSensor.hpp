@@ -68,19 +68,22 @@ namespace sensor
         // Generates the next sensor sample for the given timestamp
         Sample nextSample(int64_t now_ms) override
         {
-
+            // std::cout << "I am in the nextSample function\n";
             Sample s = initializeSample(now_ms);
             if (applyDropout(s))
                 return s;
 
             double v = generateBaseSignal(now_ms);
+            // std::cout << "Generated Base Signal: " << v << "\n";
 
             if (applyStuck(s, v, now_ms))
                 return s;
-
+            // std::cout << "I am about to be in the applySpike function\n";
             applySpike(s, v);
+            // std::cout << "Generated Spike: " << v << "\n";
 
             v += generateNoise();
+            // std::cout << "Generated Noise: " << v << "\n";
 
             s.value = v; // Final computed sensor value
             return s;    // Return the sample
@@ -102,6 +105,11 @@ namespace sensor
         std::string type() const override
         {
             return spec_.type;
+        }
+
+        SensorSpec &getSpec() override
+        {
+            return spec_;
         }
 
     private:
@@ -157,15 +165,15 @@ namespace sensor
 
         bool applyStuck(Sample &s, double v, int64_t now_ms)
         {
-            if (stuck_until_ms_ >= 0 && now_ms < stuck_until_ms_)
+            if (stuck_until_ms_ >= 0 && now_ms < stuck_until_ms_ && spec_.fault.stuck_prob > 0.0)
             {
                 s.quality |= QF_STUCK;
                 s.value = last_value_;
                 was_stuck_prev = true;
-                std::cout << "[STUCK active] now=" << now_ms
-                          << " until=" << stuck_until_ms_
-                          << " value=" << last_value_ << "\n";
-                return true;
+                // std::cout << "[STUCK active] now=" << now_ms
+                //           << " until=" << stuck_until_ms_
+                //           << " value=" << last_value_ << "\n";
+                // return true;
             }
 
             const bool allow_new_stuck_trial = !was_stuck_prev;
@@ -181,9 +189,9 @@ namespace sensor
                     last_value_ = v;
                     s.quality |= QF_STUCK;
                     s.value = last_value_;
-                    std::cout << "[STUCK start] now=" << now_ms
-                              << " dur=" << dur
-                              << " until=" << stuck_until_ms_ << "\n";
+                    // std::cout << "[STUCK start] now=" << now_ms
+                    //           << " dur=" << dur
+                    //           << " until=" << stuck_until_ms_ << "\n";
                     return true;
                 }
             }
@@ -192,13 +200,15 @@ namespace sensor
 
         void applySpike(Sample &s, double &v)
         {
+            // std::cout << "I am in the applySpike function\n";
             if (!spike_dist_(rng_))
                 return;
 
             s.quality |= QF_SPIKE;
-
+            // std::cout << "Checking if spike_sigma > 0.0\n";
             if (spec_.fault.spike_sigma > 0.0)
             {
+                // std::cout << "I am applying the spike because spike_sigma > 0.0\n";
                 v += spike_gauss_dist_(rng_);
             }
             else if (spec_.fault.spike_mag > 0.0)
@@ -206,6 +216,7 @@ namespace sensor
                 double spike = (2.0 * spec_.fault.spike_mag) * ((rng_() / (double)rng_.max()) - 0.5);
                 v += spike;
             }
+            // std::cout << "Spike applied: " << v << "\n";
         }
 
         double generateNoise()
@@ -229,6 +240,8 @@ namespace sensor
             {
                 noise += drift_per_sample_;
             }
+
+            // std::cout << "Noise generated: " << noise << "\n";
 
             return noise;
         }

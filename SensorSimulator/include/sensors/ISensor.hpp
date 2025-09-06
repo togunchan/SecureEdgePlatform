@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <string>
 #include "../sensors/Sample.hpp"
+#include "../sensors/Spec.hpp"
 
 namespace sensor
 {
@@ -23,5 +24,6 @@ namespace sensor
         // Stable identity and logical type
         virtual std::string id() const = 0;   // e.g., "TEMP-01"
         virtual std::string type() const = 0; // e.g., "TEMP", "PRES", "IMU-AXIS"
+        virtual SensorSpec &getSpec() = 0;
     };
 } // namespace sensor
