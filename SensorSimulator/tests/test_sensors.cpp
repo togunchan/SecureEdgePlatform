@@ -426,3 +426,34 @@ TEST_CASE("SimpleTempSensor: combined gaussian, uniform, and drift noise", "[sen
     }
     REQUIRE(has_increase);
 }
+
+TEST_CASE("SimpleTempSensor: dropout disables all other faults and noise", "[sensor][fault][priority]")
+{
+    SensorSpec spec = makeDefaultSpec();
+    spec.base = "constant";
+    spec.base_level = 42.0;
+
+    spec.noise.gaussian_sigma = 1.0;
+    spec.noise.uniform_range = 1.0;
+    spec.noise.drift_ppm = 10'000.0;
+
+    spec.fault.dropout_prob = 1.0; // Always dropout
+    spec.fault.stuck_prob = 1.0;
+    spec.fault.spike_prob = 1.0;
+
+    SimpleTempSensor s(spec);
+    s.reset(42);
+
+    for (int i = 0; i < 10; ++i)
+    {
+        auto smp = s.nextSample(i * 1000);
+
+        // Should be dropout
+        REQUIRE(std::isnan(smp.value));
+        REQUIRE((smp.quality & QF_DROPOUT) != 0);
+
+        // All other faults should be skipped
+        REQUIRE((smp.quality & QF_SPIKE) == 0);
+        REQUIRE((smp.quality & QF_STUCK) == 0);
+    }
+}
