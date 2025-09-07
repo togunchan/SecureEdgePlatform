@@ -277,3 +277,41 @@ TEST_CASE("Dropout has precedence over stuck/spike/noise", "[sensor][fault][prio
     REQUIRE(x.quality & QF_DROPOUT);
     REQUIRE(std::isnan(x.value));
 }
+
+TEST_CASE("SimpleTempSensor: decaying positive drift increases value over time", "[sensor][drift]")
+{
+    SensorSpec spec = makeDefaultSpec();
+    spec.base = "constant";
+    spec.base_level = 25.0;
+    spec.noise.gaussian_sigma = 0.0;
+    spec.noise.uniform_range = 0.0;
+    spec.noise.drift_ppm = 100'000.0; // intentionally large for visible change
+    spec.fault.dropout_prob = 0.0;
+    spec.fault.spike_prob = 0.0;
+    spec.fault.stuck_prob = 0.0;
+
+    SimpleTempSensor sensor(spec);
+    sensor.reset(42);
+
+    std::vector<double> values;
+    for (int i = 0; i <= 10; ++i)
+    {
+        auto smp = sensor.nextSample(i * 1000);
+        REQUIRE_FALSE(std::isnan(smp.value));
+        values.push_back(smp.value);
+    }
+
+    // Values should be strictly increasing
+    for (size_t i = 1; i < values.size(); ++i)
+    {
+        REQUIRE(values[i] > values[i - 1]);
+    }
+
+    // Drift effect should decay. Differences get smaller
+    for (size_t i = 2; i < values.size(); ++i)
+    {
+        double diff1 = values[i - 1] - values[i - 2];
+        double diff2 = values[i] - values[i - 1];
+        REQUIRE(diff2 < diff1); // drift impact is weakening
+    }
+}

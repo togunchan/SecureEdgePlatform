@@ -166,12 +166,15 @@ namespace sensor
             if (spec_.noise.drift_ppm > 0.0)
             {
                 const double t_sec = now_ms / 1000.0;
-                const double drift_saturation_seconds = 300;
+                const double drift_saturation_seconds = 300.0;
+                const double ppm = spec_.noise.drift_ppm;
+                const double base = spec_.base_level;
 
-                double decay_factor = 1.0 - std::exp(-t_sec / drift_saturation_seconds);
+                double decay = 1.0 / (1.0 + t_sec / drift_saturation_seconds);
+                double drift_rate = decay * ppm * base / 1'000'000.0;
+                double drift = drift_rate * t_sec;
 
-                double drift_value = decay_factor * spec_.noise.drift_ppm * spec_.base_level / 1'000'000.0;
-                v += drift_value * t_sec;
+                v += drift;
             }
             return v;
         }
@@ -186,7 +189,7 @@ namespace sensor
                 // std::cout << "[STUCK active] now=" << now_ms
                 //           << " until=" << stuck_until_ms_
                 //           << " value=" << last_value_ << "\n";
-                // return true;
+                return true;
             }
 
             const bool allow_new_stuck_trial = !was_stuck_prev;
