@@ -59,6 +59,7 @@ namespace sensor
             uniform_dist_ = std::uniform_real_distribution<double>(-r, +r);
 
             // Drift setup
+            double drift_offset_ = 0.0;
             drift_per_sample_ = spec_.noise.drift_ppm * spec_.base_level / 1'000'000.0;
 
             stuck_until_ms_ = -1;
@@ -127,6 +128,7 @@ namespace sensor
         double gaussian_sigma_;
         std::uniform_real_distribution<double> uniform_dist_;
         double drift_per_sample_ = 0.0;
+        double drift_offset_ = 0.0;
         std::normal_distribution<double> spike_gauss_dist_;
 
         Sample initializeSample(int64_t now_ms)
@@ -159,6 +161,17 @@ namespace sensor
             {
                 const double t = now_ms / 1000.0;
                 v += spec_.sine_amp * std::sin(2.0 * M_PI * spec_.sine_freq_hz * t);
+            }
+
+            if (spec_.noise.drift_ppm > 0.0)
+            {
+                const double t_sec = now_ms / 1000.0;
+                const double drift_saturation_seconds = 300;
+
+                double decay_factor = 1.0 - std::exp(-t_sec / drift_saturation_seconds);
+
+                double drift_value = decay_factor * spec_.noise.drift_ppm * spec_.base_level / 1'000'000.0;
+                v += drift_value * t_sec;
             }
             return v;
         }
