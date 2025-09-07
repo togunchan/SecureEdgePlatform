@@ -362,3 +362,67 @@ TEST_CASE("SimpleTempSensor: gaussian noise is within expected range", "[sensor]
         REQUIRE(smp.value <= 56.0); // 50 + 6
     }
 }
+
+TEST_CASE("SimpleTempSensor: combined gaussian, uniform, and drift noise", "[sensor][noise][combined]")
+{
+    SensorSpec spec = makeDefaultSpec();
+    spec.base = "constant";
+    spec.base_level = 100.0;
+
+    // Activate all noise types
+    spec.noise.gaussian_sigma = 1.0;
+    spec.noise.uniform_range = 1.0;
+    spec.noise.drift_ppm = 50'000.0;
+    spec.fault.dropout_prob = 0.0;
+    spec.fault.stuck_prob = 0.0;
+    spec.fault.spike_prob = 0.0;
+
+    SimpleTempSensor sensor(spec);
+    sensor.reset(321);
+
+    std::vector<double> values;
+    for (int i = 0; i < 30; ++i)
+    {
+        auto smp = sensor.nextSample(i * 1000);
+        REQUIRE_FALSE(std::isnan(smp.value));
+        values.push_back(smp.value);
+    }
+
+    const double base = spec.base_level;
+    const double max_uniform = spec.noise.uniform_range;
+    const double max_gaussian = 6.0 * spec.noise.gaussian_sigma;
+    const double margin = 3.0;
+    const double drift_saturation_seconds = 300.0;
+
+    for (int i = 0; i < 20; ++i)
+    {
+        int64_t t_ms = i * 1000;
+        double t_sec = t_ms / 1000.0;
+
+        Sample smp = sensor.nextSample(t_ms);
+        double v = smp.value;
+
+        double decay = 1.0 / (1.0 + t_sec / drift_saturation_seconds);
+        double drift_rate = decay * spec.noise.drift_ppm * base / 1'000'000.0;
+        double drift = drift_rate * t_sec;
+
+        double upper_bound = base + drift + max_uniform + max_gaussian + margin;
+        double lower_bound = base + drift - (max_uniform + max_gaussian + margin);
+
+        INFO("t=" << t_sec << "s → v=" << v << ", allowed: [" << lower_bound << ", " << upper_bound << "]");
+        REQUIRE(v >= lower_bound);
+        REQUIRE(v <= upper_bound);
+    }
+
+    // There should be some upward trend due to drift
+    bool has_increase = false;
+    for (size_t i = 1; i < values.size(); ++i)
+    {
+        if (values[i] > values[i - 1])
+        {
+            has_increase = true;
+            break;
+        }
+    }
+    REQUIRE(has_increase);
+}
