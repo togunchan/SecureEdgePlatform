@@ -338,3 +338,27 @@ TEST_CASE("SimpleTempSensor: uniform noise affects sample value", "[sensor][nois
         REQUIRE(smp.value <= 43.0);
     }
 }
+
+TEST_CASE("SimpleTempSensor: gaussian noise is within expected range", "[sensor][noise][gaussian]")
+{
+    SensorSpec spec = makeDefaultSpec();
+    spec.base = "constant";
+    spec.base_level = 50.0;
+    spec.noise.gaussian_sigma = 1.0;
+    spec.noise.uniform_range = 0.0;
+    spec.noise.drift_ppm = 0.0;
+    spec.fault.dropout_prob = 0.0;
+    spec.fault.stuck_prob = 0.0;
+    spec.fault.spike_prob = 0.0;
+
+    SimpleTempSensor sensor(spec);
+    sensor.reset(123);
+
+    for (int i = 0; i < 100; ++i)
+    {
+        Sample smp = sensor.nextSample(i * 1000);
+        // Not strict: 6σ covers 99.999%
+        REQUIRE(smp.value >= 44.0); // 50 - 6
+        REQUIRE(smp.value <= 56.0); // 50 + 6
+    }
+}

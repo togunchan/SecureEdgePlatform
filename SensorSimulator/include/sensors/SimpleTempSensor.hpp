@@ -33,7 +33,6 @@ namespace sensor
             // noise
             gaussian_sigma_ = spec_.noise.gaussian_sigma;
             dist_ = std::normal_distribution<double>(0.0, gaussian_sigma_);
-            dist_.reset();
 
             // dropout
             double p = std::clamp(spec_.fault.dropout_prob, 0.0, 1.0);
