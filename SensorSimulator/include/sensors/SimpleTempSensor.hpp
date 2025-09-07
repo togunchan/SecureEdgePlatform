@@ -20,7 +20,8 @@ namespace sensor
               dist_(0.0, 1.0),
               dropout_dist_(0.0),
               stuck_until_ms_(std::numeric_limits<int64_t>::max()),
-              spike_dist_(0.0)
+              spike_dist_(0.0),
+              uniform_dist_(0.0)
         {
         }
         // Resets the sensor state and reseeds the random number generator
@@ -69,22 +70,17 @@ namespace sensor
         // Generates the next sensor sample for the given timestamp
         Sample nextSample(int64_t now_ms) override
         {
-            // std::cout << "I am in the nextSample function\n";
             Sample s = initializeSample(now_ms);
             if (applyDropout(s))
                 return s;
 
             double v = generateBaseSignal(now_ms);
-            // std::cout << "Generated Base Signal: " << v << "\n";
+            v += generateNoise(now_ms);
 
             if (applyStuck(s, v, now_ms))
                 return s;
-            // std::cout << "I am about to be in the applySpike function\n";
-            applySpike(s, v);
-            // std::cout << "Generated Spike: " << v << "\n";
 
-            v += generateNoise();
-            // std::cout << "Generated Noise: " << v << "\n";
+            applySpike(s, v);
 
             s.value = v; // Final computed sensor value
             return s;    // Return the sample
@@ -138,7 +134,7 @@ namespace sensor
             s.seq = ++seq_;      // Increment and assign sequence number
             s.id = spec_.id;     // Sensor ID (e.g. "TEMP-01")
             s.type = spec_.type; // Sensor type (e.g. "TEMP")
-            s.quality = 0;       // Placeholder for quality metric
+            s.quality |= QF_OK;  // Placeholder for quality metric
             return s;
         }
 
@@ -161,20 +157,6 @@ namespace sensor
             {
                 const double t = now_ms / 1000.0;
                 v += spec_.sine_amp * std::sin(2.0 * M_PI * spec_.sine_freq_hz * t);
-            }
-
-            if (spec_.noise.drift_ppm > 0.0)
-            {
-                const double t_sec = now_ms / 1000.0;
-                const double drift_saturation_seconds = 300.0;
-                const double ppm = spec_.noise.drift_ppm;
-                const double base = spec_.base_level;
-
-                double decay = 1.0 / (1.0 + t_sec / drift_saturation_seconds);
-                double drift_rate = decay * ppm * base / 1'000'000.0;
-                double drift = drift_rate * t_sec;
-
-                v += drift;
             }
             return v;
         }
@@ -235,29 +217,30 @@ namespace sensor
             // std::cout << "Spike applied: " << v << "\n";
         }
 
-        double generateNoise()
+        double generateNoise(int64_t now_ms)
         {
             double noise = 0.0;
 
-            // Add Gaussian noise if enabled
             if (gaussian_sigma_ > 0.0)
             {
-                noise += dist_(rng_); // Add random noise to the signal
+                noise += dist_(rng_);
             }
 
-            // Add uniform noise if enabled
             if (spec_.noise.uniform_range > 0.0)
             {
-                noise += uniform_dist_(rng_);
+                std::uniform_real_distribution<double> uniform_dist(
+                    -spec_.noise.uniform_range, +spec_.noise.uniform_range);
+                noise += uniform_dist(rng_);
             }
 
-            // Add drift if enabled
             if (spec_.noise.drift_ppm > 0.0)
             {
-                noise += drift_per_sample_;
+                const double t_sec = now_ms / 1000.0;
+                const double drift_saturation_seconds = 300.0;
+                double decay = 1.0 / (1.0 + t_sec / drift_saturation_seconds);
+                double drift_rate = decay * spec_.noise.drift_ppm * spec_.base_level / 1'000'000.0;
+                noise += drift_rate * t_sec;
             }
-
-            // std::cout << "Noise generated: " << noise << "\n";
 
             return noise;
         }

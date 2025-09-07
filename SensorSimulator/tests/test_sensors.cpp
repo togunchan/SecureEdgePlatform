@@ -315,3 +315,26 @@ TEST_CASE("SimpleTempSensor: decaying positive drift increases value over time",
         REQUIRE(diff2 < diff1); // drift impact is weakening
     }
 }
+
+TEST_CASE("SimpleTempSensor: uniform noise affects sample value", "[sensor][noise][uniform]")
+{
+    SensorSpec spec = makeDefaultSpec();
+    spec.base = "constant";
+    spec.base_level = 42.0;
+    spec.noise.gaussian_sigma = 0.0;
+    spec.noise.uniform_range = 1.0;
+    spec.noise.drift_ppm = 0.0;
+    spec.fault.dropout_prob = 0.0;
+    spec.fault.stuck_prob = 0.0;
+    spec.fault.spike_prob = 0.0;
+
+    SimpleTempSensor sensor(spec);
+    sensor.reset(123);
+
+    for (int i = 0; i < 20; ++i)
+    {
+        Sample smp = sensor.nextSample(i * 1000);
+        REQUIRE(smp.value >= 41.0);
+        REQUIRE(smp.value <= 43.0);
+    }
+}
