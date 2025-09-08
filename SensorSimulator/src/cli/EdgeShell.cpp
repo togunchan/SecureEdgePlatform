@@ -35,7 +35,8 @@ void EdgeShell::printHelp() const
 {
     std::cout << "Commands:\n"
               << "  list                     - List all sensors\n"
-              << "  step <id>                - Generate sample\n"
+              << "  step <id>                - Generate sample from one sensor (20 times)\n"
+              << "  step all                 - Generate samples from all sensors (once)\n"
               << "  inject <type> <id>       - Inject fault (spike/stuck/dropout)\n"
               << "  reset <id>               - Reset sensor\n"
               << "  help                     - Show help\n"
@@ -70,6 +71,21 @@ void EdgeShell::handleCommand(const std::string &line)
     else if (cmd == "help")
     {
         printHelp();
+    }
+    else if (cmd == "add")
+    {
+        if (arg1.empty())
+        {
+            std::cout << "Usage: add <sensor_id>\n";
+        }
+        else
+        {
+            addSensor(arg1);
+        }
+    }
+    else if (cmd == "step" && arg1 == "all")
+    {
+        stepAllSensors();
     }
     else
     {
@@ -163,4 +179,36 @@ void EdgeShell::resetSensor(const std::string &sensorId)
 
     sensors_[sensorId]->reset(42);
     std::cout << "Sensor reset: " << sensorId << "\n";
+}
+
+void EdgeShell::addSensor(const std::string &sensorId)
+{
+    if (sensors_.find(sensorId) != sensors_.end())
+    {
+        std::cout << "Sensor already exists: " << sensorId << "\n";
+        return;
+    }
+
+    SensorSpec spec = makeDefaultSpec();
+    spec.id = sensorId;
+
+    sensors_[sensorId] = std::make_unique<SimpleTempSensor>(spec);
+    std::cout << "Sensor added: " << sensorId << "\n";
+}
+
+void EdgeShell::stepAllSensors()
+{
+    if (sensors_.empty())
+    {
+        std::cout << "No sensors available.\n";
+        return;
+    }
+
+    std::cout << "[Time: " << global_time << " ms]\n";
+    for (auto &[id, sensor] : sensors_)
+    {
+        auto sample = sensor->nextSample(global_time);
+        std::cout << " " << id << " → value: " << sample.value << "\n";
+    }
+    global_time += 1000;
 }
