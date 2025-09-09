@@ -1,4 +1,5 @@
 #include "../../include/cli/EdgeShell.hpp"
+#include "../../include/cli/commands/ListCommand.hpp"
 #include <iostream>
 #include <sstream>
 
@@ -20,6 +21,9 @@ void EdgeShell::run()
 
     addDefaultSensor();
 
+    registry_ = std::make_unique<cli::CommandRegistry>();
+    registry_->registerCommand(std::make_unique<cli::ListCommand>(*this));
+
     std::string line;
     while (true)
     {
@@ -35,10 +39,11 @@ void EdgeShell::printHelp() const
 {
     std::cout << "Commands:\n"
               << "  list                     - List all sensors\n"
-              << "  step <id>                - Generate sample from one sensor (20 times)\n"
-              << "  step all                 - Generate samples from all sensors (once)\n"
+              << "  step <id>                - Generate sample\n"
               << "  inject <type> <id>       - Inject fault (spike/stuck/dropout)\n"
               << "  reset <id>               - Reset sensor\n"
+              << "  add <id>                 - Add new sensor with given ID\n"
+              << "  step all                 - Generate samples from all sensors\n"
               << "  help                     - Show help\n"
               << "  exit                     - Exit program\n";
 }
@@ -46,51 +51,22 @@ void EdgeShell::printHelp() const
 void EdgeShell::handleCommand(const std::string &line)
 {
     std::istringstream iss(line);
-    std::string cmd, arg1, arg2;
-    iss >> cmd >> arg1 >> arg2;
+    std::string cmd, arg;
+    std::vector<std::string> args;
+    iss >> cmd;
 
-    if (cmd == "list")
+    while (iss >> arg)
     {
-        listSensors();
+        args.push_back(arg);
     }
-    else if (cmd == "step")
+
+    if (registry_)
     {
-        for (size_t i = 0; i < 20; i++)
-        {
-            stepSensor(arg1);
-        }
-    }
-    else if (cmd == "inject")
-    {
-        injectFault(arg1, arg2);
-    }
-    else if (cmd == "reset")
-    {
-        resetSensor(arg1);
-    }
-    else if (cmd == "help")
-    {
-        printHelp();
-    }
-    else if (cmd == "add")
-    {
-        if (arg1.empty())
-        {
-            std::cout << "Usage: add <sensor_id>\n";
-        }
-        else
-        {
-            addSensor(arg1);
-        }
-    }
-    else if (cmd == "step" && arg1 == "all")
-    {
-        stepAllSensors();
+        registry_->executeCommand(cmd, args);
     }
     else
     {
-        std::cout << "Unknown command: " << cmd << "\n";
-        printHelp();
+        std::cout << "Command not found: " << cmd << "\n";
     }
 }
 
