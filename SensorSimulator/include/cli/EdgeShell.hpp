@@ -16,7 +16,7 @@ namespace sensor
         void stepAllSensors();
         void stepSensor(const std::string &sensorId);
         void printHelp() const;
-        void injectFault(const std::string &faultType, const std::string &sensorId);
+        void injectFault(const std::string &faultType, const std::string &sensorId, const std::vector<std::string> &params);
         void resetSensor(const std::string &sensorId);
         void addSensor(const std::string &sensorId);
 

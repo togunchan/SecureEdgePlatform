@@ -49,14 +49,15 @@ void EdgeShell::run()
 void EdgeShell::printHelp() const
 {
     std::cout << "Commands:\n"
-              << "  list                     - List all sensors\n"
-              << "  step <id>                - Generate sample\n"
-              << "  inject <type> <id>       - Inject fault (spike/stuck/dropout)\n"
-              << "  reset <id>               - Reset sensor\n"
-              << "  add <id>                 - Add new sensor with given ID\n"
-              << "  step all                 - Generate samples from all sensors\n"
-              << "  help                     - Show help\n"
-              << "  exit                     - Exit program\n";
+              << "  list                         - List all sensors\n"
+              << "  step <id>                    - Generate sample from given sensor\n"
+              << "  step all                     - Generate samples from all sensors\n"
+              << "  inject <type> <id> [p1 p2]   - Inject fault (spike/stuck/dropout) with optional params\n"
+              << "                                 e.g. inject spike TEMP-001 5.0 0.3\n"
+              << "  reset <id>                   - Reset sensor\n"
+              << "  add <id>                     - Add new sensor with given ID\n"
+              << "  help                         - Show help\n"
+              << "  exit                         - Exit program\n";
 }
 
 void EdgeShell::handleCommand(const std::string &line)
@@ -118,7 +119,7 @@ void EdgeShell::stepSensor(const std::string &sensorId)
               << "\n";
 }
 
-void EdgeShell::injectFault(const std::string &faultType, const std::string &sensorId)
+void EdgeShell::injectFault(const std::string &faultType, const std::string &sensorId, const std::vector<std::string> &params)
 {
     if (sensors_.find(sensorId) == sensors_.end())
     {
@@ -130,18 +131,41 @@ void EdgeShell::injectFault(const std::string &faultType, const std::string &sen
 
     if (faultType == "spike")
     {
+        double mag = 3.0;
+        double sigma = 0.5;
+
+        if (params.size() >= 1)
+            mag = std::stod(params[0]);
+
+        if (params.size() >= 2)
+            sigma = std::stod(params[1]);
+
         sensor->getSpec().fault.spike_prob = 1.0;
-        sensor->getSpec().fault.spike_mag = 3.0;
-        sensor->getSpec().fault.spike_sigma = 0.5;
-        std::cout << "Injected spike fault on " << sensorId << "\n";
+        sensor->getSpec().fault.spike_mag = mag;
+        sensor->getSpec().fault.spike_sigma = sigma;
+
+        std::cout << "Injected spike fault on " << sensorId
+                  << " [mag=" << mag << ", sigma=" << sigma << "]\n";
+
         sensor->reset(42);
     }
     else if (faultType == "stuck")
     {
+        int min_ms = 1000;
+        int max_ms = 1000;
+
+        if (params.size() >= 1)
+            min_ms = std::stoi(params[0]);
+        if (params.size() >= 2)
+            max_ms = std::stoi(params[1]);
+
         sensor->getSpec().fault.stuck_prob = 1.0;
-        sensor->getSpec().fault.stuck_min_ms = 1000;
-        sensor->getSpec().fault.stuck_max_ms = 1000;
-        std::cout << "Injected stuck fault on " << sensorId << "\n";
+        sensor->getSpec().fault.stuck_min_ms = min_ms;
+        sensor->getSpec().fault.stuck_max_ms = max_ms;
+
+        std::cout << "Injected stuck fault on " << sensorId
+                  << " [min=" << min_ms << ", max=" << max_ms << "]\n";
+
         sensor->reset(42);
     }
     else if (faultType == "dropout")

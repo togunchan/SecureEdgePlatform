@@ -18,10 +18,18 @@ namespace cli
         {
             if (args.size() < 2)
             {
-                std::cout << "inject <type> <id>       - Inject fault (spike/stuck/dropout)\n";
+                std::cout << "Usage: inject <type> <sensorId> [params...]\n";
                 return;
             }
-            shell_.injectFault(args[0], args[1]);
+
+            const std::string &faultType = args[0];
+            const std::string &sensorId = args[1];
+
+            std::vector<std::string> params;
+            if (args.size() > 2)
+                params.assign(args.begin() + 2, args.end());
+
+            shell_.injectFault(faultType, sensorId, params);
         }
 
     private:
