@@ -5,6 +5,7 @@
 #include "../../include/cli/commands/InjectCommand.hpp"
 #include "../../include/cli/commands/ResetCommand.hpp"
 #include "../../include/cli/commands/AddCommand.hpp"
+#include "../../include/cli/commands/TickCommand.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -34,6 +35,7 @@ void EdgeShell::run()
     registry_->registerCommand(std::make_unique<cli::ResetCommand>(*this));
     registry_->registerCommand(std::make_unique<cli::AddCommand>(*this));
     registry_->registerCommand(std::make_unique<cli::HelpCommand>(*this));
+    registry_->registerCommand(std::make_unique<cli::TickCommand>(*this));
 
     std::string line;
     while (true)
@@ -56,6 +58,8 @@ void EdgeShell::printHelp() const
               << "                                 e.g. inject spike TEMP-001 5.0 0.3\n"
               << "  reset <id>                   - Reset sensor\n"
               << "  add <id>                     - Add new sensor with given ID\n"
+              << "  tick <delta_ms>              - Advance time and sample as needed\n"
+
               << "  help                         - Show help\n"
               << "  exit                         - Exit program\n";
 }
@@ -93,6 +97,8 @@ void EdgeShell::addDefaultSensor()
     spec.sine_freq_hz = 1.0 / 60;
     spec.noise.gaussian_sigma = 0.2;
     sensors_["TEMP-001"] = std::make_unique<SimpleTempSensor>(spec);
+    auto sensor = std::make_unique<SimpleTempSensor>(spec);
+    scheduler_.addScheduledSensor("TEMP-001", std::move(sensor), 1000);
 }
 
 void EdgeShell::listSensors() const
@@ -203,8 +209,10 @@ void EdgeShell::addSensor(const std::string &sensorId)
     SensorSpec spec = makeDefaultSpec();
     spec.id = sensorId;
 
+    auto sensor = std::make_unique<SimpleTempSensor>(spec);
     sensors_[sensorId] = std::make_unique<SimpleTempSensor>(spec);
     std::cout << "Sensor added: " << sensorId << "\n";
+    scheduler_.addScheduledSensor(sensorId, std::move(sensor), 1000);
 }
 
 void EdgeShell::stepAllSensors()
@@ -222,4 +230,10 @@ void EdgeShell::stepAllSensors()
         std::cout << " " << id << " → value: " << sample.value << "\n";
     }
     global_time += 1000;
+}
+
+void EdgeShell::tickTime(uint64_t delta_ms)
+{
+    std::cout << "[Advancing time by " << delta_ms << " ms]\n";
+    scheduler_.tick(delta_ms);
 }

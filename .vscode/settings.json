@@ -57,7 +57,11 @@
         "streambuf": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "any": "cpp",
+        "span": "cpp",
+        "unordered_set": "cpp",
+        "valarray": "cpp"
     },
     "cmake.sourceDirectory": "/Users/togunchan/Desktop/Projelerim/SecureEdgePlatform/CppMiniDB"
 }

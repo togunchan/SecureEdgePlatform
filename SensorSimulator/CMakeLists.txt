@@ -53,6 +53,7 @@ target_link_libraries(EdgeCLI
 
 add_executable(EdgeShell
     src/cli/EdgeShell.cpp
+    src/scheduler/SensorScheduler.cpp
 )
 
 target_include_directories(EdgeShell
