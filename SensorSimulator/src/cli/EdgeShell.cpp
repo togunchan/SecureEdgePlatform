@@ -1,5 +1,11 @@
 #include "../../include/cli/EdgeShell.hpp"
 #include "../../include/cli/commands/ListCommand.hpp"
+#include "../../include/cli/commands/StepCommand.hpp"
+#include "../../include/cli/commands/HelpCommand.hpp"
+#include "../../include/cli/commands/InjectCommand.hpp"
+#include "../../include/cli/commands/ResetCommand.hpp"
+#include "../../include/cli/commands/AddCommand.hpp"
+
 #include <iostream>
 #include <sstream>
 
@@ -23,6 +29,11 @@ void EdgeShell::run()
 
     registry_ = std::make_unique<cli::CommandRegistry>();
     registry_->registerCommand(std::make_unique<cli::ListCommand>(*this));
+    registry_->registerCommand(std::make_unique<cli::StepCommand>(*this));
+    registry_->registerCommand(std::make_unique<cli::InjectCommand>(*this));
+    registry_->registerCommand(std::make_unique<cli::ResetCommand>(*this));
+    registry_->registerCommand(std::make_unique<cli::AddCommand>(*this));
+    registry_->registerCommand(std::make_unique<cli::HelpCommand>(*this));
 
     std::string line;
     while (true)

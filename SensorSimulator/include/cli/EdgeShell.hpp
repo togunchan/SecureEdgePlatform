@@ -13,16 +13,16 @@ namespace sensor
     public:
         void run();
         void listSensors() const;
-
-    private:
+        void stepAllSensors();
+        void stepSensor(const std::string &sensorId);
         void printHelp() const;
-        void handleCommand(const std::string &line);
         void injectFault(const std::string &faultType, const std::string &sensorId);
         void resetSensor(const std::string &sensorId);
-        void stepSensor(const std::string &sensorId);
-        void addDefaultSensor();
         void addSensor(const std::string &sensorId);
-        void stepAllSensors();
+
+    private:
+        void handleCommand(const std::string &line);
+        void addDefaultSensor();
 
         std::unordered_map<std::string, std::unique_ptr<SimpleTempSensor>> sensors_;
 
