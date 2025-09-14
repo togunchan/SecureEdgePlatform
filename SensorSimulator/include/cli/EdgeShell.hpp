@@ -19,7 +19,8 @@ namespace sensor
         void printHelp() const;
         void injectFault(const std::string &faultType, const std::string &sensorId, const std::vector<std::string> &params);
         void resetSensor(const std::string &sensorId);
-        void addSensor(const std::string &sensorId);
+        void addScheduledSensor(const std::string &sensorId, uint64_t period_ms);
+
         void tickTime(uint64_t delta_ms);
 
     private:

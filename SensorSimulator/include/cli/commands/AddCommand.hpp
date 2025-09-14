@@ -18,11 +18,11 @@ namespace cli
         {
             if (args.empty())
             {
-                std::cout << "add <id>" << std::endl;
+                std::cout << "add <id> <period_ms>" << std::endl;
                 return;
             }
 
-            shell_.addSensor(args[0]);
+            shell_.addScheduledSensor(args[0], std::stoull(args[1]));
         }
 
     private:

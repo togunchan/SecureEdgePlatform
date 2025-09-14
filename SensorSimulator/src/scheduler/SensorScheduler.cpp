@@ -17,6 +17,11 @@ namespace sensor
         entry.next_sample_time_ms = current_time_ms_;
         schedule_[id] = std::move(entry);
         std::cout << "Sensor scheduled: " << id << " (period: " << period_ms << " ms)\n";
+
+        for (auto &[id, entry] : schedule_)
+        {
+            std::cout << "  " << id << " (period: " << entry.period_ms << " ms, next at: " << entry.next_sample_time_ms << " ms)\n";
+        }
     }
 
     void SensorScheduler::removeSensor(const std::string &id)
@@ -56,4 +61,15 @@ namespace sensor
                       << " ms, next at: " << entry.next_sample_time_ms << " ms)\n";
         }
     }
+
+    SimpleTempSensor *SensorScheduler::getScheduledSensor(const std::string &id)
+    {
+        auto it = schedule_.find(id);
+        if (it != schedule_.end())
+        {
+            return it->second.sensor.get();
+        }
+        return nullptr;
+    }
+
 }

@@ -23,6 +23,8 @@ namespace sensor
         // Lists current sensor IDs and their next sample time
         void listSensorStates() const;
 
+        SimpleTempSensor *getScheduledSensor(const std::string &id);
+
     private:
         struct SensorEntry
         {

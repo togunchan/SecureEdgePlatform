@@ -134,6 +134,7 @@ void EdgeShell::injectFault(const std::string &faultType, const std::string &sen
     }
 
     auto &sensor = sensors_[sensorId];
+    auto *scheduledSensor = scheduler_.getScheduledSensor(sensorId);
 
     if (faultType == "spike")
     {
@@ -150,10 +151,15 @@ void EdgeShell::injectFault(const std::string &faultType, const std::string &sen
         sensor->getSpec().fault.spike_mag = mag;
         sensor->getSpec().fault.spike_sigma = sigma;
 
+        scheduledSensor->getSpec().fault.spike_prob = 1.0;
+        scheduledSensor->getSpec().fault.spike_mag = mag;
+        scheduledSensor->getSpec().fault.spike_sigma = sigma;
+
         std::cout << "Injected spike fault on " << sensorId
                   << " [mag=" << mag << ", sigma=" << sigma << "]\n";
 
         sensor->reset(42);
+        scheduledSensor->reset(42);
     }
     else if (faultType == "stuck")
     {
@@ -169,16 +175,23 @@ void EdgeShell::injectFault(const std::string &faultType, const std::string &sen
         sensor->getSpec().fault.stuck_min_ms = min_ms;
         sensor->getSpec().fault.stuck_max_ms = max_ms;
 
+        scheduledSensor->getSpec().fault.stuck_prob = 1.0;
+        scheduledSensor->getSpec().fault.stuck_min_ms = min_ms;
+        scheduledSensor->getSpec().fault.stuck_max_ms = max_ms;
+
         std::cout << "Injected stuck fault on " << sensorId
                   << " [min=" << min_ms << ", max=" << max_ms << "]\n";
 
         sensor->reset(42);
+        scheduledSensor->reset(42);
     }
     else if (faultType == "dropout")
     {
         sensor->getSpec().fault.dropout_prob = 1.0;
+        scheduledSensor->getSpec().fault.dropout_prob = 1.0;
         std::cout << "Injected dropout fault on " << sensorId << "\n";
         sensor->reset(42);
+        scheduledSensor->reset(42);
     }
     else
     {
@@ -198,7 +211,7 @@ void EdgeShell::resetSensor(const std::string &sensorId)
     std::cout << "Sensor reset: " << sensorId << "\n";
 }
 
-void EdgeShell::addSensor(const std::string &sensorId)
+void EdgeShell::addScheduledSensor(const std::string &sensorId, uint64_t period_ms)
 {
     if (sensors_.find(sensorId) != sensors_.end())
     {
@@ -211,8 +224,8 @@ void EdgeShell::addSensor(const std::string &sensorId)
 
     auto sensor = std::make_unique<SimpleTempSensor>(spec);
     sensors_[sensorId] = std::make_unique<SimpleTempSensor>(spec);
+    scheduler_.addScheduledSensor(sensorId, std::move(sensor), period_ms);
     std::cout << "Sensor added: " << sensorId << "\n";
-    scheduler_.addScheduledSensor(sensorId, std::move(sensor), 1000);
 }
 
 void EdgeShell::stepAllSensors()

@@ -22,7 +22,6 @@ namespace cli
                 std::cout << "Usage: tick <delta_ms>\n";
                 return;
             }
-            std::cout << "I am in execute function" << std::endl;
 
             uint64_t delta = std::strtoull(args[0].c_str(), nullptr, 10);
             shell_.tickTime(delta);
