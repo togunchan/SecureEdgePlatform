@@ -3,6 +3,7 @@
 #include <string>
 #include "../sensors/Sample.hpp"
 #include "../sensors/Spec.hpp"
+#include <deque>
 
 namespace sensor
 {
@@ -25,5 +26,7 @@ namespace sensor
         virtual std::string id() const = 0;   // e.g., "TEMP-01"
         virtual std::string type() const = 0; // e.g., "TEMP", "PRES", "IMU-AXIS"
         virtual SensorSpec &getSpec() = 0;
+        virtual const std::deque<double> &getHistory() const = 0;
+        virtual void recordSample(double value) = 0;
     };
 } // namespace sensor

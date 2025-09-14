@@ -4,9 +4,13 @@
 #include "sensors/ISensor.hpp"
 #include "sensors/Spec.hpp"
 #include <iostream>
+#include <deque>
+#include <cstddef>
 
 namespace sensor
 {
+    static constexpr size_t kMaxPlotSamples = 100;
+
     // A simple temperature sensor simulator that supports sine wave generation and Gaussian noise
     class SimpleTempSensor : public ISensor
     {
@@ -81,8 +85,9 @@ namespace sensor
 
             applySpike(s, v);
 
-            s.value = v; // Final computed sensor value
-            return s;    // Return the sample
+            s.value = v;           // Final computed sensor value
+            recordSample(s.value); // Add to history_
+            return s;              // Return the sample
         }
 
         // Returns the sampling rate in Hz
@@ -108,6 +113,21 @@ namespace sensor
             return spec_;
         }
 
+        const std::deque<double> &getHistory() const override
+        {
+            return history_;
+        }
+
+        void recordSample(double value) override
+        {
+            std::cout << "[DEBUG] recordSample called with value = " << value << "\n";
+            if (history_.size() > kMaxPlotSamples)
+            {
+                history_.pop_front();
+            }
+            history_.push_back(value);
+        }
+
     private:
         SensorSpec spec_; // Sensor configuration parameters
         uint64_t seq_;    // Sample sequence counter
@@ -125,6 +145,7 @@ namespace sensor
         double drift_per_sample_ = 0.0;
         double drift_offset_ = 0.0;
         std::normal_distribution<double> spike_gauss_dist_;
+        std::deque<double> history_;
 
         Sample initializeSample(int64_t now_ms)
         {

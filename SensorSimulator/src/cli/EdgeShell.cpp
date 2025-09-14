@@ -6,9 +6,11 @@
 #include "../../include/cli/commands/ResetCommand.hpp"
 #include "../../include/cli/commands/AddCommand.hpp"
 #include "../../include/cli/commands/TickCommand.hpp"
+#include "../../include/cli/commands/PlotCommand.hpp"
 
 #include <iostream>
 #include <sstream>
+#include <iomanip>
 
 using namespace sensor;
 
@@ -36,6 +38,7 @@ void EdgeShell::run()
     registry_->registerCommand(std::make_unique<cli::AddCommand>(*this));
     registry_->registerCommand(std::make_unique<cli::HelpCommand>(*this));
     registry_->registerCommand(std::make_unique<cli::TickCommand>(*this));
+    registry_->registerCommand(std::make_unique<cli::PlotCommand>(*this));
 
     std::string line;
     while (true)
@@ -59,7 +62,7 @@ void EdgeShell::printHelp() const
               << "  reset <id>                   - Reset sensor\n"
               << "  add <id>                     - Add new sensor with given ID\n"
               << "  tick <delta_ms>              - Advance time and sample as needed\n"
-
+              << "  plot <id>                    - Plot sensor data\n"
               << "  help                         - Show help\n"
               << "  exit                         - Exit program\n";
 }
@@ -248,5 +251,51 @@ void EdgeShell::stepAllSensors()
 void EdgeShell::tickTime(uint64_t delta_ms)
 {
     std::cout << "[Advancing time by " << delta_ms << " ms]\n";
-    scheduler_.tick(delta_ms);
+    for (int i = 0; i < 100; ++i)
+    {
+        scheduler_.tick(delta_ms);
+    }
+}
+
+void EdgeShell::plotSensorData(const std::string &sensorId) const
+{
+    auto sensor = scheduler_.getScheduledSensor(sensorId);
+    if (!sensor)
+    {
+        std::cout << "Sensor not found: " << sensorId << "\n";
+        return;
+    }
+
+    const auto &history = sensor->getHistory();
+    if (history.empty())
+    {
+        std::cout << "No data to plot for " << sensorId << "\n";
+        return;
+    }
+
+    double min = *std::min_element(history.begin(), history.end());
+    double max = *std::max_element(history.begin(), history.end());
+    double range = (max - min) == 0 ? 1 : (max - min); // prevent divide by 0
+
+    const int height = 10;
+    std::vector<std::string> lines(height, std::string(history.size(), ' '));
+
+    for (size_t i = 0; i < history.size(); ++i)
+    {
+        int level = static_cast<int>((history[i] - min) / range * (height - 1));
+        lines[height - 1 - level][i] = '#'; // Unicode full block for clarity
+    }
+
+    std::cout << "Plotting " << sensorId << " (last " << history.size() << " samples)\n\n";
+
+    for (int i = 0; i < height; ++i)
+    {
+        double label = max - (range * i) / (height - 1);
+        std::cout << std::fixed << std::setw(6) << std::setprecision(2) << label << " ┤ " << lines[i] << "\n";
+    }
+
+    std::cout << "       └";
+    for (size_t i = 0; i < history.size(); ++i)
+        std::cout << "─";
+    std::cout << "→ Time\n";
 }

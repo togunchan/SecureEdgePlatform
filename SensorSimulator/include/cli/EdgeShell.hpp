@@ -20,8 +20,8 @@ namespace sensor
         void injectFault(const std::string &faultType, const std::string &sensorId, const std::vector<std::string> &params);
         void resetSensor(const std::string &sensorId);
         void addScheduledSensor(const std::string &sensorId, uint64_t period_ms);
-
         void tickTime(uint64_t delta_ms);
+        void plotSensorData(const std::string &sensorId) const;
 
     private:
         void handleCommand(const std::string &line);

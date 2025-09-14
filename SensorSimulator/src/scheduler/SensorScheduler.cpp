@@ -62,7 +62,7 @@ namespace sensor
         }
     }
 
-    SimpleTempSensor *SensorScheduler::getScheduledSensor(const std::string &id)
+    SimpleTempSensor *SensorScheduler::getScheduledSensor(const std::string &id) const
     {
         auto it = schedule_.find(id);
         if (it != schedule_.end())
