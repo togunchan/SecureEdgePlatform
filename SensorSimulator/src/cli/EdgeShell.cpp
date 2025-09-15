@@ -251,7 +251,7 @@ void EdgeShell::stepAllSensors()
 void EdgeShell::tickTime(uint64_t delta_ms)
 {
     std::cout << "[Advancing time by " << delta_ms << " ms]\n";
-    for (int i = 0; i < 100; ++i)
+    for (int i = 0; i < 50; ++i)
     {
         scheduler_.tick(delta_ms);
     }
@@ -283,7 +283,7 @@ void EdgeShell::plotSensorData(const std::string &sensorId) const
     for (size_t i = 0; i < history.size(); ++i)
     {
         int level = static_cast<int>((history[i] - min) / range * (height - 1));
-        lines[height - 1 - level][i] = '#'; // Unicode full block for clarity
+        lines[height - 1 - level][i] = '#'; // Data point
     }
 
     std::cout << "Plotting " << sensorId << " (last " << history.size() << " samples)\n\n";
@@ -294,8 +294,38 @@ void EdgeShell::plotSensorData(const std::string &sensorId) const
         std::cout << std::fixed << std::setw(6) << std::setprecision(2) << label << " ┤ " << lines[i] << "\n";
     }
 
+    // X-axis base line
     std::cout << "       └";
     for (size_t i = 0; i < history.size(); ++i)
         std::cout << "─";
     std::cout << "→ Time\n";
+
+    // Vertical tick markers every 10 samples
+    std::cout << "        ";
+    for (size_t i = 0; i < history.size(); ++i)
+    {
+        if (i % 10 == 0)
+            std::cout << "|";
+        else
+            std::cout << " ";
+    }
+    std::cout << "\n";
+
+    // Numerical time labels every 10 samples
+    std::cout << "        ";
+    for (size_t i = 0; i < history.size(); ++i)
+    {
+        if (i % 10 == 0)
+        {
+            std::ostringstream oss;
+            oss << i;
+            std::cout << oss.str();
+            i += oss.str().length() - 1; // avoid overlap
+        }
+        else
+        {
+            std::cout << " ";
+        }
+    }
+    std::cout << "\n";
 }
