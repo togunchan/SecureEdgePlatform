@@ -11,6 +11,30 @@ namespace sensor
 {
     static constexpr size_t kMaxPlotSamples = 100;
 
+    struct SpikeFaultInstance
+    {
+        double mag = 0.0;
+        double sigma = 0.0;
+        int64_t start_time_ms = -1;
+        int64_t end_time_ms = -1;
+        bool active = false;
+    };
+
+    struct StuckFaultInstance
+    {
+        bool active = false;
+        int64_t start_time_ms = 0;
+        int64_t end_time_ms = 0;
+        double frozen_value = std::numeric_limits<double>::quiet_NaN();
+    };
+
+    struct DropoutFaultInstance
+    {
+        bool active = false;
+        int64_t start_time_ms = 0;
+        int64_t end_time_ms = 0;
+    };
+
     // A simple temperature sensor simulator that supports sine wave generation and Gaussian noise
     class SimpleTempSensor : public ISensor
     {
@@ -75,7 +99,10 @@ namespace sensor
         {
             Sample s = initializeSample(now_ms);
             if (applyDropout(s))
+            {
+                recordSample(s.value);
                 return s;
+            }
 
             double v = generateBaseSignal(now_ms);
             v += generateNoise(now_ms);
@@ -120,12 +147,35 @@ namespace sensor
 
         void recordSample(double value) override
         {
-            std::cout << "[DEBUG] recordSample called with value = " << value << "\n";
             if (history_.size() > kMaxPlotSamples)
             {
                 history_.pop_front();
             }
             history_.push_back(value);
+        }
+
+        void triggerSpikeFault(double mag, double sigma, int64_t now_ms) override
+        {
+            active_spike_.mag = mag;
+            active_spike_.sigma = sigma;
+            active_spike_.start_time_ms = now_ms;
+            active_spike_.end_time_ms = now_ms + static_cast<int64_t>(50.0 * sigma * 1000);
+            active_spike_.active = true;
+        }
+
+        void triggerStuckFault(int64_t duration_ms, int64_t now_ms, double current_value) override
+        {
+            active_stuck_.start_time_ms = now_ms;
+            active_stuck_.end_time_ms = now_ms + duration_ms;
+            active_stuck_.frozen_value = current_value;
+            active_stuck_.active = true;
+        }
+
+        void triggerDropoutFault(int64_t now_ms, int64_t duration_ms) override
+        {
+            active_dropout_.start_time_ms = now_ms;
+            active_dropout_.end_time_ms = now_ms + duration_ms;
+            active_dropout_.active = true;
         }
 
     private:
@@ -146,6 +196,9 @@ namespace sensor
         double drift_offset_ = 0.0;
         std::normal_distribution<double> spike_gauss_dist_;
         std::deque<double> history_;
+        SpikeFaultInstance active_spike_;
+        StuckFaultInstance active_stuck_;
+        DropoutFaultInstance active_dropout_;
 
         Sample initializeSample(int64_t now_ms)
         {
@@ -160,13 +213,25 @@ namespace sensor
 
         bool applyDropout(Sample &s)
         {
-            const bool dropout = dropout_dist_(rng_);
-            if (dropout)
+            const int64_t now = s.ts;
+
+            bool triggered = false;
+            if (active_dropout_.active && now >= active_dropout_.start_time_ms && now <= active_dropout_.end_time_ms)
+            {
+                triggered = true;
+            }
+            else
+            {
+                triggered = dropout_dist_(rng_);
+            }
+
+            if (triggered)
             {
                 s.quality |= QF_DROPOUT;
                 s.value = std::numeric_limits<double>::quiet_NaN();
                 return true;
             }
+
             return false;
         }
 
@@ -183,6 +248,21 @@ namespace sensor
 
         bool applyStuck(Sample &s, double v, int64_t now_ms)
         {
+
+            if (active_stuck_.active)
+            {
+                if (now_ms <= active_stuck_.end_time_ms)
+                {
+                    s.quality |= QF_STUCK;
+                    s.value = active_stuck_.frozen_value;
+                    return true;
+                }
+                else
+                {
+                    active_stuck_.active = false;
+                }
+            }
+
             if (stuck_until_ms_ >= 0 && now_ms < stuck_until_ms_ && spec_.fault.stuck_prob > 0.0)
             {
                 s.quality |= QF_STUCK;
@@ -218,6 +298,23 @@ namespace sensor
 
         void applySpike(Sample &s, double &v)
         {
+            if (active_spike_.active)
+            {
+                int64_t now = s.ts;
+                if (now >= active_spike_.start_time_ms && now <= active_spike_.end_time_ms)
+                {
+                    s.quality |= QF_SPIKE;
+                    double spike_value = active_spike_.sigma > 0.0
+                                             ? std::normal_distribution<double>(0.0, active_spike_.sigma)(rng_)
+                                             : (2.0 * active_spike_.mag) * ((rng_() / (double)rng_.max()) - 0.5);
+                    v += spike_value;
+                }
+                else if (now > active_spike_.end_time_ms)
+                {
+                    active_spike_.active = false;
+                }
+                return;
+            }
             // std::cout << "I am in the applySpike function\n";
             if (!spike_dist_(rng_))
                 return;

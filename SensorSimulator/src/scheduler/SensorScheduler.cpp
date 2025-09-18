@@ -72,4 +72,9 @@ namespace sensor
         return nullptr;
     }
 
+    uint64_t SensorScheduler::getNow() const
+    {
+        return current_time_ms_;
+    }
+
 }

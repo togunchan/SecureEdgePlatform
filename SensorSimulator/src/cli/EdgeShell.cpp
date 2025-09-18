@@ -96,7 +96,7 @@ void EdgeShell::addDefaultSensor()
     spec.type = "TEMP";
     spec.base = "sine";
     spec.base_level = 25.0;
-    spec.sine_amp = 1.5;
+    spec.sine_amp = 0.0; // was 1.5
     spec.sine_freq_hz = 1.0 / 60;
     spec.noise.gaussian_sigma = 0.2;
     sensors_["TEMP-001"] = std::make_unique<SimpleTempSensor>(spec);
@@ -150,51 +150,42 @@ void EdgeShell::injectFault(const std::string &faultType, const std::string &sen
         if (params.size() >= 2)
             sigma = std::stod(params[1]);
 
-        sensor->getSpec().fault.spike_prob = 1.0;
-        sensor->getSpec().fault.spike_mag = mag;
-        sensor->getSpec().fault.spike_sigma = sigma;
+        int64_t now = scheduler_.getNow();
+        scheduledSensor->triggerSpikeFault(mag, sigma, now);
 
-        scheduledSensor->getSpec().fault.spike_prob = 1.0;
-        scheduledSensor->getSpec().fault.spike_mag = mag;
-        scheduledSensor->getSpec().fault.spike_sigma = sigma;
-
-        std::cout << "Injected spike fault on " << sensorId
+        std::cout << "Triggered transient spike on " << sensorId
                   << " [mag=" << mag << ", sigma=" << sigma << "]\n";
-
-        sensor->reset(42);
-        scheduledSensor->reset(42);
     }
     else if (faultType == "stuck")
     {
-        int min_ms = 1000;
-        int max_ms = 1000;
-
+        int duration_ms = 1000;
         if (params.size() >= 1)
-            min_ms = std::stoi(params[0]);
-        if (params.size() >= 2)
-            max_ms = std::stoi(params[1]);
+            duration_ms = std::stoi(params[0]);
+        std::cout << "Duration MS is ->> " << duration_ms << "\n";
 
-        sensor->getSpec().fault.stuck_prob = 1.0;
-        sensor->getSpec().fault.stuck_min_ms = min_ms;
-        sensor->getSpec().fault.stuck_max_ms = max_ms;
+        int64_t now = scheduler_.getNow();
+        double current_value = scheduledSensor->getHistory().empty()
+                                   ? scheduledSensor->getSpec().base_level
+                                   : scheduledSensor->getHistory().back();
 
-        scheduledSensor->getSpec().fault.stuck_prob = 1.0;
-        scheduledSensor->getSpec().fault.stuck_min_ms = min_ms;
-        scheduledSensor->getSpec().fault.stuck_max_ms = max_ms;
+        scheduledSensor->triggerStuckFault(duration_ms, now, current_value);
 
-        std::cout << "Injected stuck fault on " << sensorId
-                  << " [min=" << min_ms << ", max=" << max_ms << "]\n";
-
-        sensor->reset(42);
-        scheduledSensor->reset(42);
+        std::cout << "Triggered transient stuck fault on " << sensorId
+                  << " [duration=" << duration_ms << " ms]\n";
     }
     else if (faultType == "dropout")
     {
-        sensor->getSpec().fault.dropout_prob = 1.0;
-        scheduledSensor->getSpec().fault.dropout_prob = 1.0;
-        std::cout << "Injected dropout fault on " << sensorId << "\n";
-        sensor->reset(42);
-        scheduledSensor->reset(42);
+        int duration_ms = 2000;
+        if (!params.empty())
+            duration_ms = std::stoi(params[0]);
+
+        auto now = scheduler_.getNow();
+
+        sensor->triggerDropoutFault(now, duration_ms);
+        scheduledSensor->triggerDropoutFault(now, duration_ms);
+
+        std::cout << "Injected dropout fault on " << sensorId
+                  << " [duration=" << duration_ms << "ms]\n";
     }
     else
     {
@@ -251,7 +242,7 @@ void EdgeShell::stepAllSensors()
 void EdgeShell::tickTime(uint64_t delta_ms)
 {
     std::cout << "[Advancing time by " << delta_ms << " ms]\n";
-    for (int i = 0; i < 50; ++i)
+    for (int i = 0; i < 25; ++i)
     {
         scheduler_.tick(delta_ms);
     }
@@ -273,45 +264,59 @@ void EdgeShell::plotSensorData(const std::string &sensorId) const
         return;
     }
 
-    double min = *std::min_element(history.begin(), history.end());
-    double max = *std::max_element(history.begin(), history.end());
-    double range = (max - min) == 0 ? 1 : (max - min); // prevent divide by 0
+    // Min/max only from valid (non-NaN) values
+    double min = std::numeric_limits<double>::max();
+    double max = std::numeric_limits<double>::lowest();
+    for (double val : history)
+    {
+        if (!std::isnan(val))
+        {
+            min = std::min(min, val);
+            max = std::max(max, val);
+        }
+    }
 
+    double range = (max - min == 0) ? 1.0 : max - min;
     const int height = 10;
     std::vector<std::string> lines(height, std::string(history.size(), ' '));
 
     for (size_t i = 0; i < history.size(); ++i)
     {
-        int level = static_cast<int>((history[i] - min) / range * (height - 1));
-        lines[height - 1 - level][i] = '#'; // Data point
+        double val = history[i];
+        if (std::isnan(val))
+        {
+            std::cout << "[DEBUG] NaN at index " << i << "\n";
+            int middle = height / 2;
+            lines[middle][i] = 'X';
+        }
+        else
+        {
+            int level = static_cast<int>((val - min) / range * (height - 1));
+            level = std::clamp(level, 0, height - 1);
+            lines[height - 1 - level][i] = '#';
+        }
     }
 
     std::cout << "Plotting " << sensorId << " (last " << history.size() << " samples)\n\n";
-
     for (int i = 0; i < height; ++i)
     {
         double label = max - (range * i) / (height - 1);
         std::cout << std::fixed << std::setw(6) << std::setprecision(2) << label << " ┤ " << lines[i] << "\n";
     }
 
-    // X-axis base line
+    // X-axis line
     std::cout << "       └";
     for (size_t i = 0; i < history.size(); ++i)
         std::cout << "─";
     std::cout << "→ Time\n";
 
-    // Vertical tick markers every 10 samples
+    // Tick marks
     std::cout << "        ";
     for (size_t i = 0; i < history.size(); ++i)
-    {
-        if (i % 10 == 0)
-            std::cout << "|";
-        else
-            std::cout << " ";
-    }
+        std::cout << ((i % 10 == 0) ? "|" : " ");
     std::cout << "\n";
 
-    // Numerical time labels every 10 samples
+    // Time labels
     std::cout << "        ";
     for (size_t i = 0; i < history.size(); ++i)
     {
@@ -320,7 +325,7 @@ void EdgeShell::plotSensorData(const std::string &sensorId) const
             std::ostringstream oss;
             oss << i;
             std::cout << oss.str();
-            i += oss.str().length() - 1; // avoid overlap
+            i += oss.str().length() - 1;
         }
         else
         {

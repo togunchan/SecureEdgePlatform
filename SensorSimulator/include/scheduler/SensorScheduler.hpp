@@ -25,6 +25,9 @@ namespace sensor
 
         SimpleTempSensor *getScheduledSensor(const std::string &id) const;
 
+        // Returns the current simulation time
+        uint64_t getNow() const;
+
     private:
         struct SensorEntry
         {

@@ -28,5 +28,8 @@ namespace sensor
         virtual SensorSpec &getSpec() = 0;
         virtual const std::deque<double> &getHistory() const = 0;
         virtual void recordSample(double value) = 0;
+        virtual void triggerSpikeFault(double mag, double sigma, int64_t now_ms) = 0;
+        virtual void triggerStuckFault(int64_t duration_ms, int64_t now_ms, double current_value) = 0;
+        virtual void triggerDropoutFault(int64_t now_ms, int64_t duration_ms) = 0;
     };
 } // namespace sensor
