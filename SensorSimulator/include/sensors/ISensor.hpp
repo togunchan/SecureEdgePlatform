@@ -31,5 +31,6 @@ namespace sensor
         virtual void triggerSpikeFault(double mag, double sigma, int64_t now_ms) = 0;
         virtual void triggerStuckFault(int64_t duration_ms, int64_t now_ms, double current_value) = 0;
         virtual void triggerDropoutFault(int64_t now_ms, int64_t duration_ms) = 0;
+        virtual std::vector<std::string> getActiveFaults(int64_t now_ms) const = 0;
     };
 } // namespace sensor

@@ -61,7 +61,8 @@
         "any": "cpp",
         "span": "cpp",
         "unordered_set": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "__assertion_handler": "cpp"
     },
     "cmake.sourceDirectory": "/Users/togunchan/Desktop/Projelerim/SecureEdgePlatform/CppMiniDB"
 }

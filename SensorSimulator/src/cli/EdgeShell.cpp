@@ -7,6 +7,7 @@
 #include "../../include/cli/commands/AddCommand.hpp"
 #include "../../include/cli/commands/TickCommand.hpp"
 #include "../../include/cli/commands/PlotCommand.hpp"
+#include "../../include/cli/commands/StatusCommand.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -39,6 +40,7 @@ void EdgeShell::run()
     registry_->registerCommand(std::make_unique<cli::HelpCommand>(*this));
     registry_->registerCommand(std::make_unique<cli::TickCommand>(*this));
     registry_->registerCommand(std::make_unique<cli::PlotCommand>(*this));
+    registry_->registerCommand(std::make_unique<cli::StatusCommand>(scheduler_));
 
     std::string line;
     while (true)
@@ -63,6 +65,7 @@ void EdgeShell::printHelp() const
               << "  add <id>                     - Add new sensor with given ID\n"
               << "  tick <delta_ms>              - Advance time and sample as needed\n"
               << "  plot <id>                    - Plot sensor data\n"
+              << "  status <id>                  - Show active faults on given sensor\n"
               << "  help                         - Show help\n"
               << "  exit                         - Exit program\n";
 }
@@ -181,7 +184,6 @@ void EdgeShell::injectFault(const std::string &faultType, const std::string &sen
 
         auto now = scheduler_.getNow();
 
-        sensor->triggerDropoutFault(now, duration_ms);
         scheduledSensor->triggerDropoutFault(now, duration_ms);
 
         std::cout << "Injected dropout fault on " << sensorId

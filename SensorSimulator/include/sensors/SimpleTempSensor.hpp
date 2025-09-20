@@ -178,6 +178,30 @@ namespace sensor
             active_dropout_.active = true;
         }
 
+        std::vector<std::string> getActiveFaults(int64_t now_ms) const override
+        {
+            std::vector<std::string> active_faults;
+            if (active_spike_.active && now_ms <= active_spike_.end_time_ms)
+            {
+                active_faults.push_back("spike");
+            }
+            if (active_stuck_.active && now_ms <= active_stuck_.end_time_ms)
+            {
+                active_faults.push_back("stuck");
+            }
+            if (active_dropout_.active && now_ms <= active_dropout_.end_time_ms)
+            {
+                active_faults.push_back("dropout");
+            }
+            return active_faults;
+        }
+
+        const SpikeFaultInstance &getActiveSpike() const { return active_spike_; }
+
+        const StuckFaultInstance &getActiveStuck() const { return active_stuck_; }
+
+        const DropoutFaultInstance &getActiveDropout() const { return active_dropout_; }
+
     private:
         SensorSpec spec_; // Sensor configuration parameters
         uint64_t seq_;    // Sample sequence counter
@@ -362,4 +386,4 @@ namespace sensor
             return noise;
         }
     };
-}; // namespace senso
+}; // namespace sensor
