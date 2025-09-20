@@ -39,14 +39,15 @@ namespace sensor
     void SensorScheduler::tick(uint64_t delta_ms)
     {
         current_time_ms_ += delta_ms;
-        std::cout << "[Tick @ " << current_time_ms_ << " ms]\n";
+        // std::cout << "[Tick @ " << current_time_ms_ << " ms]\n";
 
         for (auto &[id, entry] : schedule_)
         {
             if (current_time_ms_ > entry.next_sample_time_ms)
             {
                 auto sample = entry.sensor->nextSample(current_time_ms_);
-                std::cout << "  " << id << " → value: " << sample.value << "\n";
+                // std::cout << "  " << id << " → value: " << sample.value << "\n";
+                std::cout << "[Tick @ " << current_time_ms_ << "]  " << entry.sensor.get()->getSpec().id << " → value: " << sample.value << "\n";
                 entry.next_sample_time_ms += entry.period_ms;
             }
         }

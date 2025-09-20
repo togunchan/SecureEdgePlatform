@@ -6,6 +6,8 @@
 #include "../sensors/SimpleTempSensor.hpp"
 #include "../scheduler/SensorScheduler.hpp"
 #include "commands/CommandRegistry.hpp"
+#include <thread>
+#include <atomic>
 
 namespace sensor
 {
@@ -30,6 +32,8 @@ namespace sensor
         std::unordered_map<std::string, std::unique_ptr<SimpleTempSensor>> sensors_;
         std::unique_ptr<cli::CommandRegistry> registry_;
         sensor::SensorScheduler scheduler_;
+        std::atomic<bool> is_running_ = false;
+        std::thread run_thread_;
     };
 
 } // namespace sensor

@@ -8,6 +8,8 @@
 #include "../../include/cli/commands/TickCommand.hpp"
 #include "../../include/cli/commands/PlotCommand.hpp"
 #include "../../include/cli/commands/StatusCommand.hpp"
+#include "../../include/cli/commands/RunCommand.hpp"
+#include "../../include/cli/commands/StopCommand.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -41,6 +43,8 @@ void EdgeShell::run()
     registry_->registerCommand(std::make_unique<cli::TickCommand>(*this));
     registry_->registerCommand(std::make_unique<cli::PlotCommand>(*this));
     registry_->registerCommand(std::make_unique<cli::StatusCommand>(scheduler_));
+    registry_->registerCommand(std::make_unique<cli::RunCommand>(scheduler_, is_running_, run_thread_));
+    registry_->registerCommand(std::make_unique<cli::StopCommand>(is_running_, run_thread_));
 
     std::string line;
     while (true)
@@ -64,6 +68,8 @@ void EdgeShell::printHelp() const
               << "  reset <id>                   - Reset sensor\n"
               << "  add <id>                     - Add new sensor with given ID\n"
               << "  tick <delta_ms>              - Advance time and sample as needed\n"
+              << "  run                          - Start real-time simulation (ticks every 1s)\n"
+              << "  stop                         - Stop real-time simulation\n"
               << "  plot <id>                    - Plot sensor data\n"
               << "  status <id>                  - Show active faults on given sensor\n"
               << "  help                         - Show help\n"
