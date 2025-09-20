@@ -32,8 +32,10 @@ namespace sensor
         std::unordered_map<std::string, std::unique_ptr<SimpleTempSensor>> sensors_;
         std::unique_ptr<cli::CommandRegistry> registry_;
         sensor::SensorScheduler scheduler_;
-        std::atomic<bool> is_running_ = false;
+        std::atomic<bool> is_running_{false};
         std::thread run_thread_;
+        std::atomic<bool> is_plotting_{false};
+        std::thread plot_thread_;
     };
 
 } // namespace sensor

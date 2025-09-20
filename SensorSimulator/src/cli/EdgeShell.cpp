@@ -10,6 +10,8 @@
 #include "../../include/cli/commands/StatusCommand.hpp"
 #include "../../include/cli/commands/RunCommand.hpp"
 #include "../../include/cli/commands/StopCommand.hpp"
+#include "../../include/cli/commands/RunPlotCommand.hpp"
+#include "../../include/cli/commands/StopPlotCommand.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -45,6 +47,8 @@ void EdgeShell::run()
     registry_->registerCommand(std::make_unique<cli::StatusCommand>(scheduler_));
     registry_->registerCommand(std::make_unique<cli::RunCommand>(scheduler_, is_running_, run_thread_));
     registry_->registerCommand(std::make_unique<cli::StopCommand>(is_running_, run_thread_));
+    registry_->registerCommand(std::make_unique<cli::RunPlotCommand>(*this, is_plotting_, plot_thread_));
+    registry_->registerCommand(std::make_unique<cli::StopPlotCommand>(is_plotting_, plot_thread_));
 
     std::string line;
     while (true)
@@ -70,6 +74,8 @@ void EdgeShell::printHelp() const
               << "  tick <delta_ms>              - Advance time and sample as needed\n"
               << "  run                          - Start real-time simulation (ticks every 1s)\n"
               << "  stop                         - Stop real-time simulation\n"
+              << "  runplot <id>                 - Start real-time plot\n"
+              << "  stopplot                     - Stop real-time plot\n"
               << "  plot <id>                    - Plot sensor data\n"
               << "  status <id>                  - Show active faults on given sensor\n"
               << "  help                         - Show help\n"
@@ -105,7 +111,7 @@ void EdgeShell::addDefaultSensor()
     spec.type = "TEMP";
     spec.base = "sine";
     spec.base_level = 25.0;
-    spec.sine_amp = 0.0; // was 1.5
+    spec.sine_amp = 0.5; // was 1.5
     spec.sine_freq_hz = 1.0 / 60;
     spec.noise.gaussian_sigma = 0.2;
     sensors_["TEMP-001"] = std::make_unique<SimpleTempSensor>(spec);
@@ -238,7 +244,7 @@ void EdgeShell::stepAllSensors()
         return;
     }
 
-    std::cout << "[Time: " << global_time << " ms]\n";
+    // std::cout << "[Time: " << global_time << " ms]\n";
     for (auto &[id, sensor] : sensors_)
     {
         auto sample = sensor->nextSample(global_time);

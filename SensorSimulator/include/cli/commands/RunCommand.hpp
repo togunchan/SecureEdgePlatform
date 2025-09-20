@@ -27,12 +27,12 @@ namespace cli
             is_running_ = true;
             run_thread_ = std::thread([this]()
                                       {
-                const int tick_ms = 1000;
-                while (is_running_)
-                {
-                    scheduler_.tick(tick_ms);
-                    std::this_thread::sleep_for(std::chrono::milliseconds(tick_ms));
-                } });
+                                        const int tick_ms = 1000;
+                                        while (is_running_)
+                                        {
+                                            scheduler_.tick(tick_ms);
+                                            std::this_thread::sleep_for(std::chrono::milliseconds(tick_ms));
+                                        } });
             std::cout << "Started real-time simulation. Use 'stop' to halt.\n";
         }
 
