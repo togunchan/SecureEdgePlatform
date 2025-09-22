@@ -43,6 +43,14 @@
 #include <string>
 #include <map>
 
+struct LogEntry
+{
+    uint64_t timestampMs;
+    std::string sensorId;
+    double value;
+    std::vector<std::string> faults;
+};
+
 /**
  * @class MiniDB
  * @brief A lightweight in-memory table abstraction with basic persistence features.
@@ -68,6 +76,8 @@ public:
      * Creates a new database object tied to a specific table identifier.
      */
     MiniDB(const std::string &tableName);
+
+    MiniDB() = default;
 
     /**
      * @brief Sets schema with names only; defaults all column types to String.
@@ -468,6 +478,13 @@ public:
      */
     static bool tryParseFloat(const std::string &s, double &out);
 
+    void appendLog(const std::string &sensorId,
+                   uint64_t timestampMs,
+                   double value,
+                   const std::vector<std::string> &faults);
+
+    const std::vector<LogEntry> &getLogs() const;
+
 private:
     /**
      * @brief Stores the name of the table.
@@ -498,6 +515,8 @@ private:
     std::string getTempFilePath() const;
 
     std::vector<ColumnType> columnTypes_;
+
+    std::vector<LogEntry> logs_;
 };
 
 /**

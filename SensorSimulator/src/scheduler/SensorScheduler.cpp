@@ -1,5 +1,6 @@
 #include <iostream>
 #include "../../include/scheduler/SensorScheduler.hpp"
+#include "../../include/cli/EdgeShell.hpp"
 
 namespace sensor
 {
@@ -39,16 +40,20 @@ namespace sensor
     void SensorScheduler::tick(uint64_t delta_ms)
     {
         current_time_ms_ += delta_ms;
-        // std::cout << "[Tick @ " << current_time_ms_ << " ms]\n";
 
         for (auto &[id, entry] : schedule_)
         {
-            if (current_time_ms_ > entry.next_sample_time_ms)
+            if (getNow() > entry.next_sample_time_ms)
             {
-                auto sample = entry.sensor->nextSample(current_time_ms_);
-                // std::cout << "  " << id << " → value: " << sample.value << "\n";
-                std::cout << "[Tick @ " << current_time_ms_ << "]  " << entry.sensor.get()->getSpec().id << " → value: " << sample.value << "\n";
+                auto sample = entry.sensor->nextSample(getNow());
+                std::cout << "[Tick @ " << getNow() << "]  " << entry.sensor.get()->getSpec().id << " → value: " << sample.value << "\n";
                 entry.next_sample_time_ms += entry.period_ms;
+
+                if (db_)
+                {
+                    auto faults = entry.sensor->getActiveFaults(getNow());
+                    db_->appendLog(id, getNow(), sample.value, faults);
+                }
             }
         }
     }
@@ -76,6 +81,11 @@ namespace sensor
     uint64_t SensorScheduler::getNow() const
     {
         return current_time_ms_;
+    }
+
+    void SensorScheduler::setDatabase(MiniDB *db)
+    {
+        db_ = db;
     }
 
 }

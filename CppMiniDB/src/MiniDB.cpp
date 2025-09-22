@@ -1061,6 +1061,34 @@ bool MiniDB::tryParseFloat(const std::string &str, double &out)
     return false;
 }
 
+void MiniDB::appendLog(const std::string &sensorId,
+                       uint64_t timestampMs,
+                       double value,
+                       const std::vector<std::string> &faults)
+{
+    std::string faultFlags;
+    for (size_t i = 0; i < faults.size(); ++i)
+    {
+        faultFlags += faults[i];
+        if (i < faults.size() - 1)
+            faultFlags += ",";
+    }
+
+    std::vector<std::string> row;
+    row.push_back(std::to_string(timestampMs));
+    row.push_back(sensorId);
+    row.push_back(std::to_string(value));
+    row.push_back(faultFlags.empty() ? "-" : faultFlags);
+
+    insertRow(row);
+    logs_.push_back(LogEntry{timestampMs, sensorId, value, faults});
+}
+
+const std::vector<LogEntry> &MiniDB::getLogs() const
+{
+    return logs_;
+}
+
 bool NumberValidator::isPureInteger(const std::string &str)
 {
     if (str.empty())

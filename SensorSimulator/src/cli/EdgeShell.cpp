@@ -12,6 +12,8 @@
 #include "../../include/cli/commands/StopCommand.hpp"
 #include "../../include/cli/commands/RunPlotCommand.hpp"
 #include "../../include/cli/commands/StopPlotCommand.hpp"
+#include "../../include/cli/commands/LogStatusCommand.hpp"
+#include "../../include/cli/commands/SaveLogCommand.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -23,7 +25,9 @@ static uint64_t global_time = 0;
 
 int main()
 {
-    sensor::EdgeShell shell;
+    EdgeShell shell;
+    MiniDB db("sensor_simulator_logs");
+    shell.setDatabase(&db);
     shell.run();
     return 0;
 }
@@ -34,6 +38,15 @@ void EdgeShell::run()
     printHelp();
 
     addDefaultSensor();
+
+    if (db_)
+    {
+        db_->setColumns(
+            {"timestamp_ms", "sensor_id", "value", "fault_flags"},
+            {MiniDB::ColumnType::Int, MiniDB::ColumnType::String,
+             MiniDB::ColumnType::Float, MiniDB::ColumnType::String});
+        scheduler_.setDatabase(db_);
+    }
 
     registry_ = std::make_unique<cli::CommandRegistry>();
     registry_->registerCommand(std::make_unique<cli::ListCommand>(*this));
@@ -49,6 +62,8 @@ void EdgeShell::run()
     registry_->registerCommand(std::make_unique<cli::StopCommand>(is_running_, run_thread_));
     registry_->registerCommand(std::make_unique<cli::RunPlotCommand>(*this, is_plotting_, plot_thread_));
     registry_->registerCommand(std::make_unique<cli::StopPlotCommand>(is_plotting_, plot_thread_));
+    registry_->registerCommand(std::make_unique<cli::LogStatusCommand>(db_));
+    registry_->registerCommand(std::make_unique<cli::SaveLogCommand>(db_));
 
     std::string line;
     while (true)
@@ -78,6 +93,8 @@ void EdgeShell::printHelp() const
               << "  stopplot                     - Stop real-time plot\n"
               << "  plot <id>                    - Plot sensor data\n"
               << "  status <id>                  - Show active faults on given sensor\n"
+              << "  logstatus                    - Show last few logged sensor entries\n"
+              << "  savelog                      - Save logs to .tbl file (in ./data folder)\n"
               << "  help                         - Show help\n"
               << "  exit                         - Exit program\n";
 }
@@ -348,3 +365,5 @@ void EdgeShell::plotSensorData(const std::string &sensorId) const
     }
     std::cout << "\n";
 }
+
+void EdgeShell::setDatabase(MiniDB *db) { db_ = db; }

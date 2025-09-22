@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "../sensors/SimpleTempSensor.hpp"
+#include "../../CppMiniDB/include/cppminidb/MiniDB.hpp"
 
 namespace sensor
 {
@@ -28,6 +29,8 @@ namespace sensor
         // Returns the current simulation time
         uint64_t getNow() const;
 
+        void setDatabase(MiniDB *db);
+
     private:
         struct SensorEntry
         {
@@ -38,5 +41,6 @@ namespace sensor
 
         uint64_t current_time_ms_ = 0;
         std::unordered_map<std::string, SensorEntry> schedule_;
+        MiniDB *db_ = nullptr;
     };
 }

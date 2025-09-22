@@ -8,6 +8,7 @@
 #include "commands/CommandRegistry.hpp"
 #include <thread>
 #include <atomic>
+#include "../../CppMiniDB/include/cppminidb/MiniDB.hpp"
 
 namespace sensor
 {
@@ -24,6 +25,7 @@ namespace sensor
         void addScheduledSensor(const std::string &sensorId, uint64_t period_ms);
         void tickTime(uint64_t delta_ms);
         void plotSensorData(const std::string &sensorId) const;
+        void setDatabase(MiniDB *db);
 
     private:
         void handleCommand(const std::string &line);
@@ -36,6 +38,7 @@ namespace sensor
         std::thread run_thread_;
         std::atomic<bool> is_plotting_{false};
         std::thread plot_thread_;
+        MiniDB *db_ = nullptr;
     };
 
 } // namespace sensor

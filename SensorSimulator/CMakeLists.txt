@@ -64,4 +64,5 @@ target_include_directories(EdgeShell
 target_link_libraries(EdgeShell
     PRIVATE
         sensor_core
+        minidb
 )
