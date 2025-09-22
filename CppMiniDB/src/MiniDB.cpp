@@ -1089,6 +1089,32 @@ const std::vector<LogEntry> &MiniDB::getLogs() const
     return logs_;
 }
 
+void MiniDB::loadLogsIntoMemory()
+{
+    logs_.clear();
+
+    auto loaded = loadFromDisk();
+    for (const auto &row : loaded)
+    {
+        auto ts = std::stoull(row.at("timestamp_ms"));
+        auto sensorId = row.at("sensor_id");
+        auto value = std::stod(row.at("value"));
+
+        std::vector<std::string> faults;
+        auto faultStr = row.at("fault_flags");
+        if (faultStr != "-" && !faultStr.empty())
+        {
+            std::stringstream faultStream(faultStr);
+            std::string fault;
+            while (std::getline(faultStream, fault, ','))
+            {
+                faults.push_back(fault);
+            }
+        }
+        logs_.push_back(LogEntry{ts, sensorId, value, faults});
+    }
+}
+
 bool NumberValidator::isPureInteger(const std::string &str)
 {
     if (str.empty())

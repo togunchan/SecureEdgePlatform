@@ -14,6 +14,7 @@
 #include "../../include/cli/commands/StopPlotCommand.hpp"
 #include "../../include/cli/commands/LogStatusCommand.hpp"
 #include "../../include/cli/commands/SaveLogCommand.hpp"
+#include "../../include/cli/commands/LoadLogCommand.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -64,6 +65,7 @@ void EdgeShell::run()
     registry_->registerCommand(std::make_unique<cli::StopPlotCommand>(is_plotting_, plot_thread_));
     registry_->registerCommand(std::make_unique<cli::LogStatusCommand>(db_));
     registry_->registerCommand(std::make_unique<cli::SaveLogCommand>(db_));
+    registry_->registerCommand(std::make_unique<cli::LoadLogCommand>(db_));
 
     std::string line;
     while (true)
@@ -95,6 +97,7 @@ void EdgeShell::printHelp() const
               << "  status <id>                  - Show active faults on given sensor\n"
               << "  logstatus                    - Show last few logged sensor entries\n"
               << "  savelog                      - Save logs to .tbl file (in ./data folder)\n"
+              << "  loadlog                      - Load logs from disk into MiniDB\n"
               << "  help                         - Show help\n"
               << "  exit                         - Exit program\n";
 }

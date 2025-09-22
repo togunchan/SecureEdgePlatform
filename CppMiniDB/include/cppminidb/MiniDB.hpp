@@ -485,6 +485,8 @@ public:
 
     const std::vector<LogEntry> &getLogs() const;
 
+    void loadLogsIntoMemory();
+
 private:
     /**
      * @brief Stores the name of the table.
