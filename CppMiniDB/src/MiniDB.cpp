@@ -962,6 +962,7 @@ void MiniDB::importFromJsonToDisk(const std::string &jsonString, bool append)
 void MiniDB::clearMemory()
 {
     rows_.clear();
+    logs_.clear();
 }
 
 void MiniDB::clearDisk(bool keepHeader)

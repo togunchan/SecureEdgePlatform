@@ -15,6 +15,7 @@
 #include "../../include/cli/commands/LogStatusCommand.hpp"
 #include "../../include/cli/commands/SaveLogCommand.hpp"
 #include "../../include/cli/commands/LoadLogCommand.hpp"
+#include "../../include/cli/commands/ClearLogCommand.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -66,6 +67,7 @@ void EdgeShell::run()
     registry_->registerCommand(std::make_unique<cli::LogStatusCommand>(db_));
     registry_->registerCommand(std::make_unique<cli::SaveLogCommand>(db_));
     registry_->registerCommand(std::make_unique<cli::LoadLogCommand>(db_));
+    registry_->registerCommand(std::make_unique<cli::ClearLogCommand>(db_));
 
     std::string line;
     while (true)
@@ -98,6 +100,7 @@ void EdgeShell::printHelp() const
               << "  logstatus                    - Show last few logged sensor entries\n"
               << "  savelog                      - Save logs to .tbl file (in ./data folder)\n"
               << "  loadlog                      - Load logs from disk into MiniDB\n"
+              << "  clearlog                     - Clear all logs from memory and disk\n"
               << "  help                         - Show help\n"
               << "  exit                         - Exit program\n";
 }

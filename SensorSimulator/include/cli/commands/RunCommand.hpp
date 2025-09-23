@@ -31,7 +31,7 @@ namespace cli
                                         while (is_running_)
                                         {
                                             scheduler_.tick(tick_ms);
-                                            std::this_thread::sleep_for(std::chrono::milliseconds(tick_ms));
+                                            std::this_thread::sleep_for(std::chrono::milliseconds(500));
                                         } });
             std::cout << "Started real-time simulation. Use 'stop' to halt.\n";
         }
