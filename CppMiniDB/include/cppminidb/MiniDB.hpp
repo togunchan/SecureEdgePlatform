@@ -488,6 +488,9 @@ public:
 
     void loadLogsIntoMemory();
 
+    // Preserves existing getLogs() behavior. Introduces getLogsSnapshot() to provide a thread-safe copy for consistent iteration under concurrent access.
+    std::vector<LogEntry> getLogsSnapshot() const;
+
 private:
     mutable std::mutex mtx_; // "mutable" to allow locking in const methods
 

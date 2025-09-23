@@ -1122,6 +1122,12 @@ void MiniDB::loadLogsIntoMemory()
     }
 }
 
+std::vector<LogEntry> MiniDB::getLogsSnapshot() const
+{
+    std::lock_guard<std::mutex> lock(mtx_);
+    return logs_;
+}
+
 bool NumberValidator::isPureInteger(const std::string &str)
 {
     if (str.empty())
