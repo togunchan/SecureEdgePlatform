@@ -42,6 +42,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <mutex>
 
 struct LogEntry
 {
@@ -488,6 +489,8 @@ public:
     void loadLogsIntoMemory();
 
 private:
+    mutable std::mutex mtx_; // "mutable" to allow locking in const methods
+
     /**
      * @brief Stores the name of the table.
      *
