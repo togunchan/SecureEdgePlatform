@@ -16,6 +16,7 @@
 #include "../../include/cli/commands/SaveLogCommand.hpp"
 #include "../../include/cli/commands/LoadLogCommand.hpp"
 #include "../../include/cli/commands/ClearLogCommand.hpp"
+#include "../../include/cli/commands/ExportLogCommand.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -68,6 +69,7 @@ void EdgeShell::run()
     registry_->registerCommand(std::make_unique<cli::SaveLogCommand>(db_));
     registry_->registerCommand(std::make_unique<cli::LoadLogCommand>(db_));
     registry_->registerCommand(std::make_unique<cli::ClearLogCommand>(db_));
+    registry_->registerCommand(std::make_unique<cli::ExportLogCommand>(db_));
 
     std::string line;
     while (true)
@@ -97,10 +99,15 @@ void EdgeShell::printHelp() const
               << "  stopplot                     - Stop real-time plot\n"
               << "  plot <id>                    - Plot sensor data\n"
               << "  status <id>                  - Show active faults on given sensor\n"
+              << "  logstatus [filters]          - Show logged sensor entries with optional filters\n"
+              << "                                 e.g. logstatus TEMP-001 last=5\n"
               << "  logstatus                    - Show last few logged sensor entries\n"
               << "  savelog                      - Save logs to .tbl file (in ./data folder)\n"
-              << "  loadlog                      - Load logs from disk into MiniDB\n"
+              << "  loadlog                      - Load logs from disk into memory\n"
               << "  clearlog                     - Clear all logs from memory and disk\n"
+              << "  exportlog [options]          - Export logs to JSON file\n"
+              << "                                 e.g. exportlog filename=logs.json\n"
+              << "                                 e.g. exportlog source=disk filename=backup.json\n"
               << "  help                         - Show help\n"
               << "  exit                         - Exit program\n";
 }
