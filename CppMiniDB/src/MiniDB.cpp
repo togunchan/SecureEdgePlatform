@@ -45,7 +45,6 @@ MiniDB::ColumnType MiniDB::columnTypeOf(const std::string &columnName) const
 
 void MiniDB::insertRow(const std::vector<std::string> &values)
 {
-    std::lock_guard<std::mutex> lock(mtx_);
 
     if (columns_.empty())
     {
@@ -73,6 +72,7 @@ std::string MiniDB::getTempFilePath() const
 void MiniDB::save() const
 {
     std::lock_guard<std::mutex> lock(mtx_);
+
     std::filesystem::create_directories("data");
     std::ofstream outFile(getTableFilePath(), std::ios::trunc); // overwrite;
     if (!outFile.is_open())
@@ -157,7 +157,6 @@ std::vector<std::map<std::string, std::string>> MiniDB::loadFromDisk() const
 std::vector<std::map<std::string, std::string>> MiniDB::selectAll() const
 {
     std::lock_guard<std::mutex> lock(mtx_);
-
     std::vector<std::map<std::string, std::string>> result;
 
     for (const auto &row : rows_)
@@ -178,7 +177,6 @@ std::vector<std::map<std::string, std::string>> MiniDB::selectAll() const
 
 void MiniDB::clear()
 {
-    std::lock_guard<std::mutex> lock(mtx_);
 
     // Clear the in-memory rows
     rows_.clear();
@@ -968,7 +966,6 @@ void MiniDB::importFromJsonToDisk(const std::string &jsonString, bool append)
 
 void MiniDB::clearMemory()
 {
-    std::lock_guard<std::mutex> lock(mtx_);
     rows_.clear();
     logs_.clear();
 }
@@ -1096,13 +1093,11 @@ void MiniDB::appendLog(const std::string &sensorId,
 
 const std::vector<LogEntry> &MiniDB::getLogs() const
 {
-    std::lock_guard<std::mutex> lock(mtx_);
     return logs_;
 }
 
 void MiniDB::loadLogsIntoMemory()
 {
-    std::lock_guard<std::mutex> lock(mtx_);
     logs_.clear();
 
     auto loaded = loadFromDisk();
