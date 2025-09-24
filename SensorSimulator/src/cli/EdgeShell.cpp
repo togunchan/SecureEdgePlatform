@@ -17,6 +17,7 @@
 #include "../../include/cli/commands/LoadLogCommand.hpp"
 #include "../../include/cli/commands/ClearLogCommand.hpp"
 #include "../../include/cli/commands/ExportLogCommand.hpp"
+#include "../../include/cli/commands/QueryLogCommand.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -70,6 +71,7 @@ void EdgeShell::run()
     registry_->registerCommand(std::make_unique<cli::LoadLogCommand>(db_));
     registry_->registerCommand(std::make_unique<cli::ClearLogCommand>(db_));
     registry_->registerCommand(std::make_unique<cli::ExportLogCommand>(db_));
+    registry_->registerCommand(std::make_unique<cli::QueryLogCommand>(db_));
 
     std::string line;
     while (true)
@@ -108,6 +110,9 @@ void EdgeShell::printHelp() const
               << "  exportlog [options]          - Export logs to JSON file\n"
               << "                                 e.g. exportlog filename=logs.json\n"
               << "                                 e.g. exportlog source=disk filename=backup.json\n"
+              << "  querylog <conds> [source=..] - Query logs with conditions\n"
+              << "                                 e.g. querylog column=value op== value=25.0\n"
+              << "                                 e.g. querylog column=sensor_id op== value=TEMP-001 source=disk\n"
               << "  help                         - Show help\n"
               << "  exit                         - Exit program\n";
 }

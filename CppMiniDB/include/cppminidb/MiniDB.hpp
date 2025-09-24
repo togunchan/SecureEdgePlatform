@@ -52,6 +52,13 @@ struct LogEntry
     std::vector<std::string> faults;
 };
 
+struct Condition
+{
+    std::string column;
+    std::string op;
+    std::string value;
+};
+
 /**
  * @class MiniDB
  * @brief A lightweight in-memory table abstraction with basic persistence features.
@@ -490,6 +497,8 @@ public:
 
     // Preserves existing getLogs() behavior. Introduces getLogsSnapshot() to provide a thread-safe copy for consistent iteration under concurrent access.
     std::vector<LogEntry> getLogsSnapshot() const;
+
+    std::vector<std::map<std::string, std::string>> selectWhereMulti(const std::vector<Condition> &conditions, bool fromDisk) const;
 
 private:
     mutable std::mutex mtx_; // "mutable" to allow locking in const methods

@@ -1128,6 +1128,105 @@ std::vector<LogEntry> MiniDB::getLogsSnapshot() const
     return logs_;
 }
 
+std::vector<std::map<std::string, std::string>> MiniDB::selectWhereMulti(const std::vector<Condition> &conditions, bool fromDisk) const
+{
+    auto rows = fromDisk ? loadFromDisk() : selectAll();
+    std::vector<std::map<std::string, std::string>> result;
+
+    for (const auto &row : rows)
+    {
+        bool match = true;
+        for (const auto &condition : conditions)
+        {
+            auto it = row.find(condition.column);
+            if (it == row.end())
+            {
+                match = false;
+                break;
+            }
+
+            ColumnType colType;
+
+            try
+            {
+                colType = columnTypeOf(condition.column);
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << e.what() << '\n';
+                match = false;
+                break;
+            }
+
+            if (condition.op == ">" || condition.op == "<" || condition.op == ">=" || condition.op == "<=")
+            {
+                if (columnTypeOf(condition.column) != ColumnType::Int &&
+                    columnTypeOf(condition.column) != ColumnType::Float)
+                {
+                    throw std::invalid_argument(
+                        "Operator '" + condition.op + "' not valid for non-numeric column '" + condition.column + "'");
+                }
+            }
+
+            const std::string &cell = it->second;
+            if (condition.op == "==")
+            {
+                if (cell != condition.value)
+                {
+                    match = false;
+                    break;
+                }
+            }
+            else if (condition.op == "!=")
+            {
+                if (cell == condition.value)
+                {
+                    match = false;
+                    break;
+                }
+            }
+            else if (condition.op == ">")
+            {
+                if (!(std::stod(cell) > std::stod(condition.value)))
+                {
+                    match = false;
+                    break;
+                }
+            }
+            else if (condition.op == "<")
+            {
+                if (!(std::stod(cell) < std::stod(condition.value)))
+                {
+                    match = false;
+                    break;
+                }
+            }
+            else if (condition.op == ">=")
+            {
+                if (!(std::stod(cell) >= std::stod(condition.value)))
+                {
+                    match = false;
+                    break;
+                }
+            }
+            else if (condition.op == "<=")
+            {
+                if (!(std::stod(cell) <= std::stod(condition.value)))
+                {
+                    match = false;
+                    break;
+                }
+            }
+        }
+
+        if (match)
+        {
+            result.push_back(row);
+        }
+    }
+    return result;
+}
+
 bool NumberValidator::isPureInteger(const std::string &str)
 {
     if (str.empty())
