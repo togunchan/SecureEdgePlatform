@@ -18,6 +18,7 @@
 #include "../../include/cli/commands/ClearLogCommand.hpp"
 #include "../../include/cli/commands/ExportLogCommand.hpp"
 #include "../../include/cli/commands/QueryLogCommand.hpp"
+#include "../../include/cli/commands/ImportLogCommand.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -72,6 +73,7 @@ void EdgeShell::run()
     registry_->registerCommand(std::make_unique<cli::ClearLogCommand>(db_));
     registry_->registerCommand(std::make_unique<cli::ExportLogCommand>(db_));
     registry_->registerCommand(std::make_unique<cli::QueryLogCommand>(db_));
+    registry_->registerCommand(std::make_unique<cli::ImportLogCommand>(db_));
 
     std::string line;
     while (true)
@@ -113,6 +115,9 @@ void EdgeShell::printHelp() const
               << "  querylog <conds> [source=..] - Query logs with conditions\n"
               << "                                 e.g. querylog column=value op== value=25.0\n"
               << "                                 e.g. querylog column=sensor_id op== value=TEMP-001 source=disk\n"
+              << "  importlog [options]          - Import logs from JSON into memory or disk\n"
+              << "                                 e.g. importlog filename=backup.json\n"
+              << "                                 e.g. importlog target=disk filename=logs.json\n"
               << "  help                         - Show help\n"
               << "  exit                         - Exit program\n";
 }

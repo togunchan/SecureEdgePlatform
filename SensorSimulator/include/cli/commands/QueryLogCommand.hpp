@@ -56,7 +56,6 @@ namespace cli
                     return;
                 }
 
-                // Pretty-print like logstatus
                 std::cout << "Query Results:\n---------------------------------------------\n";
                 for (const auto &row : results)
                 {
