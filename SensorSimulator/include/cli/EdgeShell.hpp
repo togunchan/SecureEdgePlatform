@@ -26,6 +26,7 @@ namespace sensor
         void tickTime(uint64_t delta_ms);
         void plotSensorData(const std::string &sensorId) const;
         void setDatabase(MiniDB *db);
+        const std::unordered_map<std::string, std::unique_ptr<ISensor>> &getSensors() const;
 
     private:
         void handleCommand(const std::string &line);

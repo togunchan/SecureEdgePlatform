@@ -28,15 +28,6 @@ using namespace sensor;
 
 static uint64_t global_time = 0;
 
-int main()
-{
-    EdgeShell shell;
-    MiniDB db("sensor_simulator_logs");
-    shell.setDatabase(&db);
-    shell.run();
-    return 0;
-}
-
 void EdgeShell::run()
 {
     std::cout << "Welcome to EdgeShell - Multi-Sensor Fault Injector\n";
@@ -268,12 +259,15 @@ void EdgeShell::addScheduledSensor(const std::string &sensorId, uint64_t period_
         return;
     }
 
+    std::string upperId = sensorId;
+    std::transform(upperId.begin(), upperId.end(), upperId.begin(), ::toupper);
+
     SensorSpec spec;
-    if (sensorId.starts_with("TEMP"))
+    if (upperId.starts_with("TEMP"))
     {
         spec = makeDefaultTempSpec();
     }
-    else if (sensorId.starts_with("PRES"))
+    else if (upperId.starts_with("PRES"))
     {
         spec = makeDefaultPressureSpec();
     }
@@ -407,3 +401,8 @@ void EdgeShell::plotSensorData(const std::string &sensorId) const
 }
 
 void EdgeShell::setDatabase(MiniDB *db) { db_ = db; }
+
+const std::unordered_map<std::string, std::unique_ptr<ISensor>> &EdgeShell::getSensors() const
+{
+    return sensors_;
+}
