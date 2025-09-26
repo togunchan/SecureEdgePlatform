@@ -4,7 +4,7 @@
 
 namespace sensor
 {
-    void SensorScheduler::addScheduledSensor(const std::string &id, std::unique_ptr<SimpleTempSensor> sensor, uint64_t period_ms)
+    void SensorScheduler::addScheduledSensor(const std::string &id, std::unique_ptr<SimpleSensor> sensor, uint64_t period_ms)
     {
         if (schedule_.count(id))
         {
@@ -68,7 +68,7 @@ namespace sensor
         }
     }
 
-    SimpleTempSensor *SensorScheduler::getScheduledSensor(const std::string &id) const
+    SimpleSensor *SensorScheduler::getScheduledSensor(const std::string &id) const
     {
         auto it = schedule_.find(id);
         if (it != schedule_.end())

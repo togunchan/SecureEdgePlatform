@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <memory>
 #include <string>
-#include "../sensors/SimpleTempSensor.hpp"
+#include "../sensors/SimpleSensor.hpp"
 #include "../scheduler/SensorScheduler.hpp"
 #include "commands/CommandRegistry.hpp"
 #include <thread>
@@ -31,7 +31,7 @@ namespace sensor
         void handleCommand(const std::string &line);
         void addDefaultSensor();
 
-        std::unordered_map<std::string, std::unique_ptr<SimpleTempSensor>> sensors_;
+        std::unordered_map<std::string, std::unique_ptr<SimpleSensor>> sensors_;
         std::unique_ptr<cli::CommandRegistry> registry_;
         sensor::SensorScheduler scheduler_;
         std::atomic<bool> is_running_{false};

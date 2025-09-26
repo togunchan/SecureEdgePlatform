@@ -1,12 +1,12 @@
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch_all.hpp>
-#include "sensors/SimpleTempSensor.hpp"
+#include "sensors/SimpleSensor.hpp"
 #include <iostream>
 #include <cmath>
 
 using namespace sensor;
 
-TEST_CASE("SimpleTempSensor determinism with same seed", "[sensor][determinism]")
+TEST_CASE("SimpleSensor determinism with same seed", "[sensor][determinism]")
 {
     SensorSpec spec;
     spec.id = "TEMP-01";
@@ -18,7 +18,7 @@ TEST_CASE("SimpleTempSensor determinism with same seed", "[sensor][determinism]"
     spec.sine_freq_hz = 0.5;
     spec.noise.gaussian_sigma = 0.1;
 
-    SimpleTempSensor a(spec), b(spec);
+    SimpleSensor a(spec), b(spec);
     a.reset(123);
     b.reset(123);
 
@@ -32,19 +32,19 @@ TEST_CASE("SimpleTempSensor determinism with same seed", "[sensor][determinism]"
     REQUIRE(s1.type == s2.type);
 }
 
-TEST_CASE("SimpleTempSensor exposes rate and identity", "[sensor][api]")
+TEST_CASE("SimpleSensor exposes rate and identity", "[sensor][api]")
 {
     SensorSpec spec;
     spec.id = "TEMP-01";
     spec.type = "TEMP";
     spec.rate_hz = 5;
-    SimpleTempSensor s(spec);
+    SimpleSensor s(spec);
     REQUIRE(s.rateHz() == 5);
     REQUIRE(s.id() == "TEMP-01");
     REQUIRE(s.type() == "TEMP");
 }
 
-TEST_CASE("SimpleTempSensor: 100% dropout yields NaN and quality flag", "[sensor][fault][dropout]")
+TEST_CASE("SimpleSensor: 100% dropout yields NaN and quality flag", "[sensor][fault][dropout]")
 {
     SensorSpec spec;
     spec.id = "TEMP-01";
@@ -55,7 +55,7 @@ TEST_CASE("SimpleTempSensor: 100% dropout yields NaN and quality flag", "[sensor
     spec.noise.gaussian_sigma = 0.0;
     spec.fault.dropout_prob = 1.0;
 
-    SimpleTempSensor s(spec);
+    SimpleSensor s(spec);
     s.reset(42);
 
     for (int i = 0; i < 5; ++i)
@@ -66,7 +66,7 @@ TEST_CASE("SimpleTempSensor: 100% dropout yields NaN and quality flag", "[sensor
     }
 }
 
-TEST_CASE("SimpleTempSensor: 0% dropout produces normal samples", "[sensor][fault][dropout]")
+TEST_CASE("SimpleSensor: 0% dropout produces normal samples", "[sensor][fault][dropout]")
 {
     SensorSpec spec;
     spec.id = "TEMP-02";
@@ -77,7 +77,7 @@ TEST_CASE("SimpleTempSensor: 0% dropout produces normal samples", "[sensor][faul
     spec.noise.gaussian_sigma = 0.0;
     spec.fault.dropout_prob = 0.0;
 
-    SimpleTempSensor s(spec);
+    SimpleSensor s(spec);
     s.reset(7);
 
     for (int i = 0; i < 5; ++i)
@@ -102,7 +102,7 @@ TEST_CASE("Spike always on when prob = 1", "[sensor][fault][spike]")
     spec.fault.spike_mag = 5.0;
     spec.fault.spike_sigma = 0.0;
 
-    SimpleTempSensor s(spec);
+    SimpleSensor s(spec);
     s.reset(42);
     auto smp = s.nextSample(1000);
     REQUIRE((smp.quality & QF_SPIKE) != 0);
@@ -113,8 +113,8 @@ TEST_CASE("Spike always on when prob = 1", "[sensor][fault][spike]")
 // Note: Declared as 'static' so that this helper is visible only within this
 // translation unit (test_sensors.cpp). This prevents global symbol pollution
 // and avoids potential linker conflicts if other test files also define a
-// makeDefaultSpec() function.
-// static SensorSpec makeDefaultSpec()
+// makeDefaultTempSpec() function.
+// static SensorSpec makeDefaultTempSpec()
 // {
 //     SensorSpec spec;
 //     spec.id = "TEMP-01";
@@ -133,12 +133,12 @@ TEST_CASE("Spike always on when prob = 1", "[sensor][fault][spike]")
 
 TEST_CASE("Dropout dominates over spike", "[sensor][fault][dropout][spike]")
 {
-    auto spec = makeDefaultSpec();
+    auto spec = makeDefaultTempSpec();
     spec.fault.dropout_prob = 1.0;
     spec.fault.spike_prob = 1.0;
     spec.fault.spike_mag = 5.0;
 
-    SimpleTempSensor s(spec);
+    SimpleSensor s(spec);
     s.reset(123);
 
     auto sample = s.nextSample(1'000);
@@ -154,14 +154,14 @@ TEST_CASE("Dropout dominates over spike", "[sensor][fault][dropout][spike]")
 // Using this time point isolates the effect of spike/noise from the sine.
 TEST_CASE("Spike applied without noise at t=1000ms (sin term is zero)", "[sensor][fault][spike]")
 {
-    auto spec = makeDefaultSpec();
+    auto spec = makeDefaultTempSpec();
     spec.fault.spike_prob = 1.0;
     spec.fault.spike_mag = 3.5;
     spec.fault.spike_sigma = 0.0;
     spec.noise.gaussian_sigma = 0.0;
     spec.fault.dropout_prob = 0.0;
 
-    SimpleTempSensor s(spec);
+    SimpleSensor s(spec);
     s.reset(42);
 
     auto sample = s.nextSample(1'000);
@@ -174,12 +174,12 @@ TEST_CASE("Spike applied without noise at t=1000ms (sin term is zero)", "[sensor
 
 TEST_CASE("No spike when spike_prob=0, no dropout, no noise", "[sensor][fault][spike]")
 {
-    auto spec = makeDefaultSpec();
+    auto spec = makeDefaultTempSpec();
     spec.fault.spike_prob = 0.0;
     spec.fault.dropout_prob = 0.0;
     spec.noise.gaussian_sigma = 0.0;
 
-    SimpleTempSensor s(spec);
+    SimpleSensor s(spec);
     s.reset(7);
 
     auto sample = s.nextSample(1'000); // base = 25.0
@@ -191,14 +191,14 @@ TEST_CASE("No spike when spike_prob=0, no dropout, no noise", "[sensor][fault][s
 TEST_CASE("Spike always vs never across many samples", "[sensor][fault][spike][prob]")
 {
     {
-        auto spec = makeDefaultSpec();
+        auto spec = makeDefaultTempSpec();
         spec.fault.spike_prob = 1.0;
         spec.fault.spike_mag = 1.0;
         spec.fault.spike_sigma = 0.0;
         spec.noise.gaussian_sigma = 0.0;
         spec.fault.dropout_prob = 0.0;
 
-        SimpleTempSensor s(spec);
+        SimpleSensor s(spec);
         s.reset(99);
 
         for (int i = 0; i < 20; ++i)
@@ -210,13 +210,13 @@ TEST_CASE("Spike always vs never across many samples", "[sensor][fault][spike][p
     }
 
     {
-        auto spec = makeDefaultSpec();
+        auto spec = makeDefaultTempSpec();
         spec.fault.spike_prob = 0.0;
         spec.noise.gaussian_sigma = 0.0;
         spec.fault.spike_sigma = 0.0;
         spec.fault.dropout_prob = 0.0;
 
-        SimpleTempSensor s(spec);
+        SimpleSensor s(spec);
         s.reset(100);
 
         for (int i = 0; i < 20; ++i)
@@ -230,7 +230,7 @@ TEST_CASE("Spike always vs never across many samples", "[sensor][fault][spike][p
 
 TEST_CASE("Stuck freezes value within windows", "[sensor][fault][stuck]")
 {
-    SensorSpec spec = makeDefaultSpec();
+    SensorSpec spec = makeDefaultTempSpec();
     spec.base = "constant";
     spec.base_level = 25.0;
     spec.noise.gaussian_sigma = 0.0;
@@ -241,7 +241,7 @@ TEST_CASE("Stuck freezes value within windows", "[sensor][fault][stuck]")
     spec.fault.stuck_min_ms = 3000;
     spec.fault.stuck_max_ms = 3000;
 
-    SimpleTempSensor s(spec);
+    SimpleSensor s(spec);
     s.reset(123);
 
     auto a = s.nextSample(500);
@@ -259,7 +259,7 @@ TEST_CASE("Stuck freezes value within windows", "[sensor][fault][stuck]")
 
 TEST_CASE("Dropout has precedence over stuck/spike/noise", "[sensor][fault][priority]")
 {
-    SensorSpec spec = makeDefaultSpec();
+    SensorSpec spec = makeDefaultTempSpec();
     spec.base = "constant";
     spec.base_level = 10.0;
     spec.noise.gaussian_sigma = 1.0;
@@ -270,7 +270,7 @@ TEST_CASE("Dropout has precedence over stuck/spike/noise", "[sensor][fault][prio
     spec.fault.stuck_min_ms = 1000;
     spec.fault.stuck_max_ms = 1000;
 
-    SimpleTempSensor s(spec);
+    SimpleSensor s(spec);
     s.reset(42);
 
     auto x = s.nextSample(1000);
@@ -278,9 +278,9 @@ TEST_CASE("Dropout has precedence over stuck/spike/noise", "[sensor][fault][prio
     REQUIRE(std::isnan(x.value));
 }
 
-TEST_CASE("SimpleTempSensor: decaying positive drift increases value over time", "[sensor][drift]")
+TEST_CASE("SimpleSensor: decaying positive drift increases value over time", "[sensor][drift]")
 {
-    SensorSpec spec = makeDefaultSpec();
+    SensorSpec spec = makeDefaultTempSpec();
     spec.base = "constant";
     spec.base_level = 25.0;
     spec.noise.gaussian_sigma = 0.0;
@@ -290,7 +290,7 @@ TEST_CASE("SimpleTempSensor: decaying positive drift increases value over time",
     spec.fault.spike_prob = 0.0;
     spec.fault.stuck_prob = 0.0;
 
-    SimpleTempSensor sensor(spec);
+    SimpleSensor sensor(spec);
     sensor.reset(42);
 
     std::vector<double> values;
@@ -316,9 +316,9 @@ TEST_CASE("SimpleTempSensor: decaying positive drift increases value over time",
     }
 }
 
-TEST_CASE("SimpleTempSensor: uniform noise affects sample value", "[sensor][noise][uniform]")
+TEST_CASE("SimpleSensor: uniform noise affects sample value", "[sensor][noise][uniform]")
 {
-    SensorSpec spec = makeDefaultSpec();
+    SensorSpec spec = makeDefaultTempSpec();
     spec.base = "constant";
     spec.base_level = 42.0;
     spec.noise.gaussian_sigma = 0.0;
@@ -328,7 +328,7 @@ TEST_CASE("SimpleTempSensor: uniform noise affects sample value", "[sensor][nois
     spec.fault.stuck_prob = 0.0;
     spec.fault.spike_prob = 0.0;
 
-    SimpleTempSensor sensor(spec);
+    SimpleSensor sensor(spec);
     sensor.reset(123);
 
     for (int i = 0; i < 20; ++i)
@@ -339,9 +339,9 @@ TEST_CASE("SimpleTempSensor: uniform noise affects sample value", "[sensor][nois
     }
 }
 
-TEST_CASE("SimpleTempSensor: gaussian noise is within expected range", "[sensor][noise][gaussian]")
+TEST_CASE("SimpleSensor: gaussian noise is within expected range", "[sensor][noise][gaussian]")
 {
-    SensorSpec spec = makeDefaultSpec();
+    SensorSpec spec = makeDefaultTempSpec();
     spec.base = "constant";
     spec.base_level = 50.0;
     spec.noise.gaussian_sigma = 1.0;
@@ -351,7 +351,7 @@ TEST_CASE("SimpleTempSensor: gaussian noise is within expected range", "[sensor]
     spec.fault.stuck_prob = 0.0;
     spec.fault.spike_prob = 0.0;
 
-    SimpleTempSensor sensor(spec);
+    SimpleSensor sensor(spec);
     sensor.reset(123);
 
     for (int i = 0; i < 100; ++i)
@@ -363,9 +363,9 @@ TEST_CASE("SimpleTempSensor: gaussian noise is within expected range", "[sensor]
     }
 }
 
-TEST_CASE("SimpleTempSensor: combined gaussian, uniform, and drift noise", "[sensor][noise][combined]")
+TEST_CASE("SimpleSensor: combined gaussian, uniform, and drift noise", "[sensor][noise][combined]")
 {
-    SensorSpec spec = makeDefaultSpec();
+    SensorSpec spec = makeDefaultTempSpec();
     spec.base = "constant";
     spec.base_level = 100.0;
 
@@ -377,7 +377,7 @@ TEST_CASE("SimpleTempSensor: combined gaussian, uniform, and drift noise", "[sen
     spec.fault.stuck_prob = 0.0;
     spec.fault.spike_prob = 0.0;
 
-    SimpleTempSensor sensor(spec);
+    SimpleSensor sensor(spec);
     sensor.reset(321);
 
     std::vector<double> values;
@@ -427,9 +427,9 @@ TEST_CASE("SimpleTempSensor: combined gaussian, uniform, and drift noise", "[sen
     REQUIRE(has_increase);
 }
 
-TEST_CASE("SimpleTempSensor: dropout disables all other faults and noise", "[sensor][fault][priority]")
+TEST_CASE("SimpleSensor: dropout disables all other faults and noise", "[sensor][fault][priority]")
 {
-    SensorSpec spec = makeDefaultSpec();
+    SensorSpec spec = makeDefaultTempSpec();
     spec.base = "constant";
     spec.base_level = 42.0;
 
@@ -441,7 +441,7 @@ TEST_CASE("SimpleTempSensor: dropout disables all other faults and noise", "[sen
     spec.fault.stuck_prob = 1.0;
     spec.fault.spike_prob = 1.0;
 
-    SimpleTempSensor s(spec);
+    SimpleSensor s(spec);
     s.reset(42);
 
     for (int i = 0; i < 10; ++i)

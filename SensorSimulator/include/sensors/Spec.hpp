@@ -39,7 +39,7 @@ namespace sensor
         double sine_freq_hz = 0.0;
     };
 
-    static inline SensorSpec makeDefaultSpec()
+    static inline SensorSpec makeDefaultTempSpec()
     {
         SensorSpec s;
         s.id = "TEMP-01";
@@ -61,6 +61,27 @@ namespace sensor
         s.fault.stuck_prob = 0.0;
         s.fault.stuck_min_ms = 0;
         s.fault.stuck_max_ms = 0;
+
+        return s;
+    }
+
+    static inline SensorSpec makeDefaultPressureSpec()
+    {
+        SensorSpec s;
+        s.id = "PRES-01";
+        s.type = "PRES";
+        s.rate_hz = 1;
+
+        s.base = "sine";
+        s.base_level = 1013.25;
+        s.sine_amp = 5.0;
+        s.sine_freq_hz = 0.01;
+
+        s.noise.gaussian_sigma = 0.5;
+
+        s.fault.dropout_prob = 0.0;
+        s.fault.spike_prob = 0.0;
+        s.fault.stuck_prob = 0.0;
 
         return s;
     }

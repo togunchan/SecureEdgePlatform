@@ -2,7 +2,7 @@
 
 #include "ICommand.hpp"
 #include "scheduler/SensorScheduler.hpp"
-#include "sensors/SimpleTempSensor.hpp"
+#include "sensors/SimpleSensor.hpp"
 #include <iostream>
 
 namespace cli

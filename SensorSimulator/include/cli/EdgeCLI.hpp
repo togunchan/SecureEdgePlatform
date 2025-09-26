@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include "../sensors/SimpleTempSensor.hpp"
+#include "../sensors/SimpleSensor.hpp"
 
 class EdgeCLI
 {
@@ -12,7 +12,7 @@ private:
     void handleInput(char cmd);
     void generateAndPrintSample();
 
-    std::unique_ptr<sensor::SimpleTempSensor> sensor_;
+    std::unique_ptr<sensor::SimpleSensor> sensor_;
     sensor::SensorSpec spec_;
     uint64_t current_time_ms_ = 0;
 };

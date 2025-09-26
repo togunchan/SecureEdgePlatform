@@ -44,7 +44,7 @@ void EdgeCLI::run()
     spec_.sine_freq_hz = 0.1;
     spec_.noise.gaussian_sigma = 0.1;
 
-    sensor_ = std::make_unique<SimpleTempSensor>(spec_);
+    sensor_ = std::make_unique<SimpleSensor>(spec_);
     sensor_->reset(42);
 
     char cmd;
@@ -81,13 +81,13 @@ void EdgeCLI::handleInput(char cmd)
         spec_.fault.spike_prob = 1.0;
         spec_.fault.spike_mag = 3.0;
         spec_.fault.spike_sigma = 0.0;
-        sensor_ = std::make_unique<SimpleTempSensor>(spec_);
+        sensor_ = std::make_unique<SimpleSensor>(spec_);
         sensor_->reset(42);
         std::cout << "Spike fault injected.\n";
         break;
     case '3':
         spec_.fault.dropout_prob = 1.0;
-        sensor_ = std::make_unique<SimpleTempSensor>(spec_);
+        sensor_ = std::make_unique<SimpleSensor>(spec_);
         sensor_->reset(42);
         std::cout << "Dropout fault injected.\n";
         break;
@@ -95,13 +95,13 @@ void EdgeCLI::handleInput(char cmd)
         spec_.fault.stuck_prob = 1.0;
         spec_.fault.stuck_min_ms = 1000;
         spec_.fault.stuck_max_ms = 1000;
-        sensor_ = std::make_unique<SimpleTempSensor>(spec_);
+        sensor_ = std::make_unique<SimpleSensor>(spec_);
         sensor_->reset(42);
         std::cout << "Stuck fault injected.\n";
         break;
     case '5':
         spec_.fault = FaultSpec{};
-        sensor_ = std::make_unique<SimpleTempSensor>(spec_);
+        sensor_ = std::make_unique<SimpleSensor>(spec_);
         sensor_->reset(42);
         std::cout << "All faults cleared.\n";
         break;

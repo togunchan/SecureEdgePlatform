@@ -146,7 +146,7 @@ void EdgeShell::handleCommand(const std::string &line)
 
 void EdgeShell::addDefaultSensor()
 {
-    SensorSpec spec = makeDefaultSpec();
+    SensorSpec spec = makeDefaultTempSpec();
     spec.id = "TEMP-001";
     spec.type = "TEMP";
     spec.base = "sine";
@@ -154,8 +154,8 @@ void EdgeShell::addDefaultSensor()
     spec.sine_amp = 0.5; // was 1.5
     spec.sine_freq_hz = 1.0 / 60;
     spec.noise.gaussian_sigma = 0.2;
-    sensors_["TEMP-001"] = std::make_unique<SimpleTempSensor>(spec);
-    auto sensor = std::make_unique<SimpleTempSensor>(spec);
+    sensors_["TEMP-001"] = std::make_unique<SimpleSensor>(spec);
+    auto sensor = std::make_unique<SimpleSensor>(spec);
     scheduler_.addScheduledSensor("TEMP-001", std::move(sensor), 1000);
 }
 
@@ -267,11 +267,26 @@ void EdgeShell::addScheduledSensor(const std::string &sensorId, uint64_t period_
         return;
     }
 
-    SensorSpec spec = makeDefaultSpec();
+    SensorSpec spec;
+    if (sensorId.starts_with("TEMP"))
+    {
+        spec = makeDefaultTempSpec();
+    }
+    else if (sensorId.starts_with("PRES"))
+    {
+        spec = makeDefaultPressureSpec();
+    }
+    else
+    {
+        printHelp();
+        std::cout << "Only TEMP and PRES commands are acceptable at the moment...\n";
+
+        return;
+    }
     spec.id = sensorId;
 
-    auto sensor = std::make_unique<SimpleTempSensor>(spec);
-    sensors_[sensorId] = std::make_unique<SimpleTempSensor>(spec);
+    auto sensor = std::make_unique<SimpleSensor>(spec);
+    sensors_[sensorId] = std::make_unique<SimpleSensor>(spec);
     scheduler_.addScheduledSensor(sensorId, std::move(sensor), period_ms);
     std::cout << "Sensor added: " << sensorId << "\n";
 }
