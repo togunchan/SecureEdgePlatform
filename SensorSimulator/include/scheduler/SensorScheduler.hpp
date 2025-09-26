@@ -13,7 +13,7 @@ namespace sensor
     {
     public:
         // Adds a new sensor to the scheduler with a given sampling period (in ms)
-        void addScheduledSensor(const std::string &id, std::unique_ptr<SimpleSensor> sensor, uint64_t period_ms);
+        void addScheduledSensor(const std::string &id, ISensor *sensor, uint64_t period_ms);
 
         // Removes a sensor from the scheduler
         void removeSensor(const std::string &id);
@@ -31,10 +31,21 @@ namespace sensor
 
         void setDatabase(MiniDB *db);
 
+        template <typename T>
+        T *getScheduledSensorAs(const std::string &id) const
+        {
+            auto it = schedule_.find(id);
+            if (it != schedule_.end())
+            {
+                return dynamic_cast<T *>(it->second.sensor);
+            }
+            return nullptr;
+        }
+
     private:
         struct SensorEntry
         {
-            std::unique_ptr<SimpleSensor> sensor;
+            ISensor *sensor;
             uint64_t period_ms;
             uint64_t next_sample_time_ms;
         };

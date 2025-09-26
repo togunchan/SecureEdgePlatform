@@ -154,9 +154,10 @@ void EdgeShell::addDefaultSensor()
     spec.sine_amp = 0.5; // was 1.5
     spec.sine_freq_hz = 1.0 / 60;
     spec.noise.gaussian_sigma = 0.2;
-    sensors_["TEMP-001"] = std::make_unique<SimpleSensor>(spec);
     auto sensor = std::make_unique<SimpleSensor>(spec);
-    scheduler_.addScheduledSensor("TEMP-001", std::move(sensor), 1000);
+    ISensor *sensorPtr = sensor.get();
+    sensors_["TEMP-001"] = std::move(sensor);
+    scheduler_.addScheduledSensor("TEMP-001", sensorPtr, 1000);
 }
 
 void EdgeShell::listSensors() const
@@ -192,7 +193,7 @@ void EdgeShell::injectFault(const std::string &faultType, const std::string &sen
     }
 
     auto &sensor = sensors_[sensorId];
-    auto *scheduledSensor = scheduler_.getScheduledSensor(sensorId);
+    auto *scheduledSensor = scheduler_.getScheduledSensorAs<sensor::SimpleSensor>(sensorId);
 
     if (faultType == "spike")
     {
@@ -286,8 +287,9 @@ void EdgeShell::addScheduledSensor(const std::string &sensorId, uint64_t period_
     spec.id = sensorId;
 
     auto sensor = std::make_unique<SimpleSensor>(spec);
-    sensors_[sensorId] = std::make_unique<SimpleSensor>(spec);
-    scheduler_.addScheduledSensor(sensorId, std::move(sensor), period_ms);
+    ISensor *sensorPtr = sensor.get();
+    sensors_[sensorId] = std::move(sensor);
+    scheduler_.addScheduledSensor(sensorId, sensorPtr, period_ms);
     std::cout << "Sensor added: " << sensorId << "\n";
 }
 
@@ -319,7 +321,7 @@ void EdgeShell::tickTime(uint64_t delta_ms)
 
 void EdgeShell::plotSensorData(const std::string &sensorId) const
 {
-    auto sensor = scheduler_.getScheduledSensor(sensorId);
+    auto sensor = scheduler_.getScheduledSensorAs<sensor::SimpleSensor>(sensorId);
     if (!sensor)
     {
         std::cout << "Sensor not found: " << sensorId << "\n";

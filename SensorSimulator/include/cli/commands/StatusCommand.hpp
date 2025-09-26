@@ -27,7 +27,7 @@ namespace cli
             }
 
             const std::string &sensorId = args[0];
-            auto sensor = scheduler_.getScheduledSensor(sensorId);
+            auto sensor = scheduler_.getScheduledSensorAs<sensor::SimpleSensor>(sensorId);
             if (!sensor)
             {
                 std::cout << "Sensor not found: " << sensorId << "\n";

@@ -1,10 +1,9 @@
 #include <iostream>
 #include "../../include/scheduler/SensorScheduler.hpp"
-#include "../../include/cli/EdgeShell.hpp"
 
 namespace sensor
 {
-    void SensorScheduler::addScheduledSensor(const std::string &id, std::unique_ptr<SimpleSensor> sensor, uint64_t period_ms)
+    void SensorScheduler::addScheduledSensor(const std::string &id, ISensor *sensor, uint64_t period_ms)
     {
         if (schedule_.count(id))
         {
@@ -13,7 +12,7 @@ namespace sensor
         }
 
         SensorEntry entry;
-        entry.sensor = std::move(sensor);
+        entry.sensor = sensor;
         entry.period_ms = period_ms;
         entry.next_sample_time_ms = current_time_ms_;
         schedule_[id] = std::move(entry);
@@ -43,10 +42,15 @@ namespace sensor
 
         for (auto &[id, entry] : schedule_)
         {
+            if (!entry.sensor)
+            {
+                std::cerr << "NULL sensor for id=" << id << "\n";
+                continue;
+            }
             if (getNow() > entry.next_sample_time_ms)
             {
                 auto sample = entry.sensor->nextSample(getNow());
-                std::cout << "[Tick @ " << getNow() << "]  " << entry.sensor.get()->getSpec().id << " → value: " << sample.value << "\n";
+                std::cout << "[Tick @ " << getNow() << "]  " << entry.sensor->getSpec().id << " → value: " << sample.value << "\n";
                 entry.next_sample_time_ms += entry.period_ms;
 
                 if (db_)
@@ -73,7 +77,7 @@ namespace sensor
         auto it = schedule_.find(id);
         if (it != schedule_.end())
         {
-            return it->second.sensor.get();
+            return dynamic_cast<SimpleSensor *>(it->second.sensor);
         }
         return nullptr;
     }
