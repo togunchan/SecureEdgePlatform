@@ -1,227 +1,253 @@
 # CppMiniDB
 
-A minimal, embeddable table store for C++ with **in-memory** and **on-disk** (CSV-like) persistence, **type-aware filtering**, and **JSON import/export**. Designed for constrained or simulated embedded environments where a full RDBMS is overkill.  
-CppMiniDB is part of the broader **SecureEdgePlatform** project, providing a lightweight data layer for embedded and simulated environments.
-## Features
+CppMiniDB is a lightweight C++20 library for tabular data storage. It offers an in-memory table abstraction with optional persistence to CSV-style files and JSON import/export utilities. The library is intended for embedded scenarios where a full database engine would be overkill, yet structured sensor or logging data must be captured, queried, and replayed reliably.
 
-- **Schema definition**: `setColumns(names)` or `setColumns(names, types)`
-- **Types**: `String`, `Int`, `Float` (per-column)
-- **Insert / Select / Update / Delete**
-  - In-memory operations
-  - On-disk operations via `.tbl` files (CSV-like)
-- **Type-aware filtering**
-  - Strings: `==`, `!=`
-  - Numeric (Int/Float): `<`, `<=`, `==`, `!=`, `>=`, `>`
-- **JSON import/export**
-  - Export in-memory table to JSON array (`exportToJson`)
-  - Export on-disk table to JSON array (`exportToJsonFromDisk`)
-  - Import JSON array into memory (`importFromJson`)
-  - Write JSON array directly to disk (`importFromJsonToDisk`, append or overwrite)
-- **Clear helpers**
-  - `clear()` (truncate file & keep header), `clearMemory()`, `clearDisk(keepHeader)`
+---
 
-## File Layout & Persistence
+## Table of Contents
+1. [Highlights](#highlights)
+2. [Architecture](#architecture)
+3. [Building](#building)
+4. [Usage](#usage)
+5. [API Overview](#api-overview)
+6. [Persistence](#persistence)
+7. [Queries & Updates](#queries--updates)
+8. [JSON Utilities](#json-utilities)
+9. [Testing](#testing)
+10. [Project Layout](#project-layout)
+11. [Extending MiniDB](#extending-minidb)
+12. [Troubleshooting](#troubleshooting)
+13. [Dependencies](#dependencies)
+14. [Contact](#contact)
 
-- Tables are stored as CSV-like `.tbl` files under `./data/`.
-- First line is the **header** (column names, comma-separated).
-- Each subsequent line is a row; cells are written as raw strings (no quoting/escaping by default).
+---
 
-**Example Table (.tbl format):**
+## Highlights
 
-| Name  | Age | Country |
-|-------|-----|---------|
-| Alice | 30  | USA     |
-| Bob   | 25  | Canada  |
+- **Header-first design** with a compact implementation in `src/MiniDB.cpp`.
+- **Schema-aware table**: define columns and types, then insert rows aligned to the schema.
+- **In-memory operations**: insert, update, delete, and query rows without disk I/O.
+- **Persistence hooks**: save to `.tbl` files and reload on demand.
+- **JSON integration**: import/export JSON arrays for interoperability with external tools.
+- **Condition-based filtering** across memory or disk, including multi-clause queries.
 
-**Equivalent JSON (after export):**
+CppMiniDB serves as the storage engine for `SensorSimulator` but can be embedded in any standalone C++ project that needs lightweight tabular logging.
 
-```json
-[
-  { "Name": "Alice", "Age": 30, "Country": "USA" },
-  { "Name": "Bob",   "Age": 25, "Country": "Canada" }
-]
+---
+
+## Architecture
+
 ```
-> ⚠️ Note: Because the on-disk format is a simple CSV-like text, values containing commas/newlines/quotes are not escaped in the current version. Prefer simple, delimiter-free strings or extend the writer/reader to add quoting/escaping.
++-------------------+      +------------------+      +--------------------+
+|  Application Code | ---> |     MiniDB       | ---> |   File System /    |
+|  (e.g. EdgeShell) |      |  In-memory table |      |   JSON Export      |
++-------------------+      +------------------+      +--------------------+
+         |                         |                           |
+         |                         |                           |
+         |                         v                           |
+         |                +------------------+                 |
+         |                | Query / Update   |                 |
+         |                | Operations       |                 |
+         |                +------------------+                 |
+         |                         |                           |
+         +-------------------------+---------------------------+
+```
 
-## Build & Test
+- **In-memory table**: rows and columns stored as vectors of strings with per-column type metadata to aid comparisons.
+- **Persistence layer**: `.tbl` files are written under `data/` by default; JSON export/import bridges MiniDB with REST APIs or scripting environments.
+- **Concurrency**: a `std::mutex` guards shared state so that read/write operations can be invoked from multiple threads.
 
-This module uses CMake. Dependencies:
-- **Catch2** (for tests) — already present under `third_party/Catch2`
-- **nlohmann/json** — present under `third_party/json` (single-header include)
+---
+
+## Building
+
+CppMiniDB is included as a subdirectory of the SecureEdgePlatform project. To build it individually:
 
 ```bash
-# From project root
-mkdir -p build && cd build
+mkdir -p build
+cd build
 cmake ..
-make
+cmake --build . --target minidb         # library
+cmake --build . --target test_minidb    # Catch2 test suite
+```
 
-# Run unit tests
+The library target is named `minidb`. You can link it into your projects using CMake:
+
+```cmake
+add_subdirectory(CppMiniDB)
+target_link_libraries(my_app PRIVATE minidb)
+```
+
+---
+
+## Usage
+
+### 1. Create a MiniDB instance
+
+```c++
+#include "cppminidb/MiniDB.hpp"
+
+MiniDB db("temperature_logs");
+db.setColumns({"timestamp_ms", "sensor_id", "value"},
+              {MiniDB::ColumnType::Int, MiniDB::ColumnType::String, MiniDB::ColumnType::Float});
+```
+
+### 2. Insert rows
+
+```c++
+db.insertRow({"1000", "TEMP-001", "24.8"});
+db.insertRow({"2000", "TEMP-001", "24.9"});
+```
+
+### 3. Query
+
+```c++
+auto recent = db.selectWhereFromMemory("sensor_id", "==", "TEMP-001");
+for (const auto &row : recent)
+{
+    std::cout << row.at("timestamp_ms") << " → " << row.at("value") << '\n';
+}
+```
+
+### 4. Persist and reload
+
+```c++
+db.save();                 // writes data/temperature_logs.tbl
+auto fromDisk = db.loadFromDisk();
+```
+
+---
+
+## API Overview
+
+The core API lives in `include/cppminidb/MiniDB.hpp`. Key operations include:
+
+- `setColumns(names)` / `setColumns(names, types)` &mdash; define the table schema.
+- `insertRow(values)` &mdash; append a row (vector size must match the column count).
+- `selectAll()` &mdash; return all in-memory rows as a vector of maps.
+- `save()` &mdash; flush in-memory rows to disk (CSV-like format).
+- `clear()` &mdash; remove all rows and truncate the `.tbl` file while preserving the header.
+- `clearMemory()` / `clearDisk()` &mdash; clear only memory or the on-disk file.
+- `columnTypeOf(name)` &mdash; inspect declared column types.
+- `rowCount()` / `columnCount()` &mdash; quick metrics for diagnostics.
+- `appendLog()` / `getLogs()` &mdash; specialised helpers used by SensorSimulator for structured sensor logs.
+
+Refer to the header for additional helpers such as `tryParseInt`, `tryParseFloat`, or `hasColumn`.
+
+---
+
+## Persistence
+
+### File Layout
+
+The `.tbl` format uses a CSV-like structure:
+
+```
+timestamp_ms,sensor_id,value
+1000,TEMP-001,24.8
+2000,TEMP-001,24.9
+```
+
+- Files are written to `data/<tableName>.tbl` unless you customise `getTableFilePath()`.
+- `save()` overwrites the file with the current schema and rows.
+- `loadFromDisk()` reads existing `.tbl` files and returns rows as maps.
+- `clearDisk(true)` truncates the file but preserves the header, which is useful for resetting logs between runs.
+
+### Disk vs Memory Queries
+
+Most operations have twin variants that read either the in-memory state or the persisted file:
+
+- `selectWhereFromMemory` / `selectWhereFromDisk`
+- `updateWhereFromMemory` / `updateWhereFromDisk`
+- `deleteWhereFromMemory` / `deleteWhereFromDisk`
+
+This allows you to treat the persisted file as the source of truth when necessary.
+
+---
+
+## Queries & Updates
+
+MiniDB filters rows using simple relational operators (`==`, `!=`, `<`, `>`, `<=`, `>=`). The type metadata defined in `setColumns` ensures numeric comparisons are handled correctly. For multi-clause filtering, use `selectWhereMulti` with a vector of `Condition` objects.
+
+Updates and deletes follow the same interface and can operate on memory or disk. Disk operations rewrite the underlying file, so consider calling `save()` after in-memory updates if you want changes persisted.
+
+---
+
+## JSON Utilities
+
+- `exportToJson()` &mdash; serialize in-memory rows as a JSON array.
+- `exportToJsonFromDisk()` &mdash; read the `.tbl` file and convert it to JSON.
+- `importFromJson(jsonString)` &mdash; populate in-memory rows from a JSON array.
+- `importFromJsonToDisk(jsonString, append)` &mdash; write rows directly to disk, optionally appending to existing files.
+
+These helpers rely on the bundled `nlohmann::json` header (`third_party/json`). They are useful for REST endpoints, telemetry dumps, or integration tests that exchange JSON payloads.
+
+---
+
+## Testing
+
+CppMiniDB ships with a Catch2-based suite in `tests/test_minidb.cpp`. Run it from the build directory:
+
+```bash
 ctest --output-on-failure
 # or
-./test_minidb
-```
-## Usage Examples
-
-### 1. Define Schema and Insert Rows
-```cpp
-MiniDB db;
-db.setColumns({"Name", "Age", "Country"}, {MiniDB::String, MiniDB::Int, MiniDB::String});
-
-db.insertRow({"Alice", "30", "USA"});
-db.insertRow({"Bob", "25", "Canada"});
+./CppMiniDB/test_minidb
 ```
 
-### 2. Select with Filter (In-Memory)
-```cpp
-auto results = db.selectWhereFromMemory("Age", ">", "26");
-// returns only Alice
-```
+The tests cover schema setup, row insertion, persistence, and JSON workflows. Extend them if you add new functionality.
 
-### 3. Export to JSON
-```cpp
-std::string jsonOut = db.exportToJson();
-// => "[{\"Name\":\"Alice\",\"Age\":30,\"Country\":\"USA\"}, ...]"
-```
+---
 
-### 4. Import from JSON
-```cpp
-std::string jsonData = R"([
-  {"Name": "Charlie", "Age": 40, "Country": "UK"}
-])";
-db.importFromJson(jsonData);
-```
+## Project Layout
 
-### 5. Work with Disk Persistence
-```cpp
-MiniDB fileDb("users"); // creates ./data/users.tbl
-fileDb.setColumns({"ID", "Score"}, {MiniDB::Int, MiniDB::Float});
-fileDb.insertRow({"1", "98.5"});
-fileDb.insertRow({"2", "76.0"});
-
-// Export file-based table to JSON
-std::string jsonDisk = fileDb.exportToJsonFromDisk();
-```
-
-## Quick Status
-
-| Feature                     | Status   | Notes                                     |
-|------------------------------|----------|------------------------------------------|
-| Core CRUD (memory & disk)   | ✅ Done  | Fully implemented                         |
-| Type-aware filtering        | ✅ Done  | Supports string and numeric comparisons   |
-| JSON import/export          | ✅ Done  | In-memory and on-disk                     |
-| Extensive unit tests        | ✅ Done  | Catch2-based, covers edge cases           |
-| ORDER BY / LIMIT / LIKE     | ⏭️ Optional | Planned for future versions            |
-| Simple indexing / quoting   | ⏭️ Optional | Not yet implemented                    |
-
-## API Reference
-
-### Types
-```cpp
-enum class MiniDB::ColumnType { String, Int, Float };
+```text
+CppMiniDB/
+├── include/
+│   └── cppminidb/
+│       └── MiniDB.hpp      # Public API
+├── src/
+│   └── MiniDB.cpp          # Implementation
+├── tests/
+│   └── test_minidb.cpp     # Catch2 tests
+└── CMakeLists.txt          # CMake targets and dependencies
 ```
 
 ---
 
-### Construction
-| Signature | Description |
-|---|---|
-| `MiniDB(const std::string& tableName)` | Creates an instance bound to a table name; the same name is used for persistence (`./data/<table>.tbl`). |
+## Extending MiniDB
+
+1. **Custom storage locations**
+   - Override `getTableFilePath()` or wrap MiniDB to choose a different folder structure.
+
+2. **Additional column types**
+   - Extend `ColumnType` enum and update parsing/comparison helpers accordingly.
+
+3. **Advanced querying**
+   - Build higher-level DSL helpers around `selectWhereMulti` if you need AND/OR combinations or aggregates.
+
+4. **Threading model**
+   - `mtx_` protects core data structures. For high-throughput workloads, consider adding read-write locks or batched operations.
 
 ---
 
-### Schema
-| Signature | Description |
-|---|---|
-| `void setColumns(const std::vector<std::string>& names)` | Defines schema with names only; all column types default to `String`. |
-| `void setColumns(const std::vector<std::string>& names, const std::vector<ColumnType>& types)` | Defines schema with explicit per-column types; throws if sizes mismatch or names are empty. |
-| `ColumnType columnTypeOf(const std::string& name) const` | Returns the declared type of a column; throws if the column does not exist. |
-| `bool hasColumn(const std::string& name) const` | Checks whether a column exists in the current schema. |
-| `std::size_t columnCount() const noexcept` | Returns number of defined columns. |
+## Troubleshooting
+
+- **Empty results after reload**: ensure `save()` has been called before `loadFromDisk()`. The file is created lazily.
+- **Schema mismatch during JSON import**: if columns already exist, JSON input must match the declared schema exactly.
+- **Numeric comparisons failing**: verify that the column type was set to `Int` or `Float`. String columns compare lexicographically.
+- **File permission errors**: the default `data/` directory must be writable. Create it manually if the application lacks permissions.
 
 ---
 
-### Insert / Read (Memory & Disk)
-| Signature | Description |
-|---|---|
-| `void insertRow(const std::vector<std::string>& values)` | Inserts one row into memory; value count must equal column count. |
-| `std::vector<std::map<std::string,std::string>> selectAll() const` | Returns all in-memory rows as `{col→value}` maps. |
-| `std::vector<std::map<std::string,std::string>> loadFromDisk() const` | Loads rows from disk and returns `{col→value}` maps (aligned by header). |
-| `void save() const` | Writes the in-memory table to `./data/<table>.tbl` (header + rows). |
+## Dependencies
+
+- **nlohmann/json** (bundled in `third_party/json`) for JSON parsing/serialization.
+- **Catch2 v3** for unit testing (pulled in via the parent project).
+- **C++ Standard Library** (threads, mutex, filesystem, iostream, etc.).
+
+No external database engine or runtime is required.
 
 ---
-
-### Update
-| Signature | Description |
-|---|---|
-| `void updateWhereFromMemory(const std::string& column, const std::string& op, const std::string& value, const std::map<std::string,std::string>& updateMap)` | Updates matching rows in memory according to `updateMap`. |
-| `void updateWhereFromDisk(const std::string& column, const std::string& op, const std::string& value, const std::map<std::string,std::string>& updateMap)` | Updates matching rows on disk using a temporary file for atomic replacement. |
-
----
-
-### Delete
-| Signature | Description |
-|---|---|
-| `void deleteWhereFromMemory(const std::string& column, const std::string& op, const std::string& value)` | Removes matching rows from memory. |
-| `void deleteWhereFromDisk(const std::string& column, const std::string& op, const std::string& value)` | Removes matching rows on disk by writing only non-matching rows to a temp file, then renaming. |
-
----
-
-### JSON I/O
-| Signature | Description |
-|---|---|
-| `std::string exportToJson() const` | Serializes the in-memory table to a JSON array string (nlohmann/json-based). |
-| `std::string exportToJsonFromDisk() const` | Serializes the on-disk table to a JSON array string. |
-| `std::string exportToJsonLegacy() const` | Legacy JSON exporter (manual string building); kept for compatibility. |
-| `void importFromJson(const std::string& jsonString)` | Loads rows into memory from a JSON array of objects; infers schema if empty, otherwise validates. |
-| `void importFromJsonToDisk(const std::string& jsonString, bool append=false)` | Writes a JSON array of objects directly to the `.tbl` file; `append=true` enforces header compatibility. |
-
----
-
-### Clear Helpers
-| Signature | Description |
-|---|---|
-| `void clear()` | Clears memory and truncates the on-disk file to header (schema preserved). |
-| `void clearMemory()` | Clears only in-memory rows (does not touch disk or schema). |
-| `void clearDisk(bool keepHeader=true)` | Clears the on-disk file; keeps the header when `keepHeader` is true. |
-| `std::size_t rowCount() const noexcept` | Returns the count of in-memory rows (not on-disk). |
-
----
-
-### Filtering & Operators
-| Signature | Description |
-|---|---|
-| `std::vector<std::map<std::string,std::string>> selectWhereFromMemory(const std::string& column, const std::string& op, const std::string& value) const` | In-memory selection by condition. |
-| `std::vector<std::map<std::string,std::string>> selectWhereFromDisk(const std::string& column, const std::string& op, const std::string& value) const` | On-disk selection by condition. |
-| `static bool isOpAllowedForType(const std::string& op, ColumnType t)` | Validates that an operator is permitted for the column type (String: `==`,`!=`; Numeric: `<,<=,==,!=,>=,>`). |
-| `bool compareNumeric(int a, const std::string& op, int b) const` | Applies a comparison operator to integers. |
-| `bool compareString(std::string a, const std::string& op, std::string b) const` | Applies `==`/`!=` to strings. |
-| `static bool tryParseInt(const std::string& s, int& out)` | Attempts to parse a signed integer (validate + `stoi`). |
-| `static bool tryParseFloat(const std::string& s, double& out)` | Attempts to parse a floating-point number (validate + `stof`). |
-
-> **Note – Type-Aware Filtering**  
-> • `String` columns support only `==` and `!=`.  
-> • `Int`/`Float` columns support `<, <=, ==, !=, >=, >`.  
-> • For numeric comparisons, the right-hand-side value is parsed once; each row's cell is parsed per-iteration.  
-> • Cells that cannot be parsed as numbers (e.g., `"N/A"`) are skipped for numeric comparisons.
-
-## Design Notes & Limits
-
-- **CSV-like format**: Minimalist, no quoting/escaping — keep values simple.
-- **Type enforcement**: Basic `String`, `Int`, `Float` only. No composite/complex types.
-- **Atomic writes**: Current version appends directly; no transactional guarantees.
-- **Indexing**: None; full scan per query. Suitable for small/medium tables.
-- **Filtering rules**: Strings → only `==` / `!=`; Numerics → full comparison ops.
-
-## Roadmap
-
-- Add support for `ORDER BY`, `LIMIT`, and `LIKE` operations.
-- Optional indexing (hash-based or B-tree) for faster lookups.
-- Escaped/quoted CSV writing and parsing.
-- Basic transactional file writes (atomic replace strategy).
-
-## License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Contact
 Questions, feedback, ideas?
