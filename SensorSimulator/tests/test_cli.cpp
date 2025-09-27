@@ -57,3 +57,18 @@ TEST_CASE("CLI case-insensitive sensor IDs", "[cli][add][case]")
     REQUIRE(sensors.at("temp-002")->type() == "TEMP");
     REQUIRE(sensors.at("PrEs-003")->type() == "PRES");
 }
+
+TEST_CASE("CLI remove sensor", "[cli][remove]")
+{
+    EdgeShell shell;
+    shell.addScheduledSensor("TEMP-001", 1000);
+
+    auto &sensors = shell.getSensors();
+    REQUIRE(sensors.find("TEMP-001") != sensors.end());
+
+    bool removed = shell.removeSensor("TEMP-001");
+    REQUIRE(removed);
+
+    auto &sensors2 = shell.getSensors();
+    REQUIRE(sensors2.find("TEMP-001") == sensors2.end());
+}

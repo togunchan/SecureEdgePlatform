@@ -92,4 +92,14 @@ namespace sensor
         db_ = db;
     }
 
+    void SensorScheduler::removeScheduledSensor(const std::string &id)
+    {
+        auto it = schedule_.find(id);
+        if (it != schedule_.end())
+        {
+            schedule_.erase(it);
+            std::cout << "Sensor unscheduled: " << id << "\n";
+        }
+    }
+
 }

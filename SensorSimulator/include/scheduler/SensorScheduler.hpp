@@ -31,6 +31,8 @@ namespace sensor
 
         void setDatabase(MiniDB *db);
 
+        void removeScheduledSensor(const std::string &id);
+
         template <typename T>
         T *getScheduledSensorAs(const std::string &id) const
         {

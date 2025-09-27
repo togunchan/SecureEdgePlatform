@@ -27,6 +27,7 @@ namespace sensor
         void plotSensorData(const std::string &sensorId) const;
         void setDatabase(MiniDB *db);
         const std::unordered_map<std::string, std::unique_ptr<ISensor>> &getSensors() const;
+        bool removeSensor(const std::string &id);
 
     private:
         void handleCommand(const std::string &line);

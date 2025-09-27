@@ -19,6 +19,7 @@
 #include "../../include/cli/commands/ExportLogCommand.hpp"
 #include "../../include/cli/commands/QueryLogCommand.hpp"
 #include "../../include/cli/commands/ImportLogCommand.hpp"
+#include "../../include/cli/commands/RemoveCommand.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -65,6 +66,7 @@ void EdgeShell::run()
     registry_->registerCommand(std::make_unique<cli::ExportLogCommand>(db_));
     registry_->registerCommand(std::make_unique<cli::QueryLogCommand>(db_));
     registry_->registerCommand(std::make_unique<cli::ImportLogCommand>(db_));
+    registry_->registerCommand(std::make_unique<cli::RemoveCommand>(*this));
 
     std::string line;
     while (true)
@@ -87,6 +89,7 @@ void EdgeShell::printHelp() const
               << "                                 e.g. inject spike TEMP-001 5.0 0.3\n"
               << "  reset <id>                   - Reset sensor\n"
               << "  add <id>                     - Add new sensor with given ID\n"
+              << "  remove <id>                  - Remove an existing sensor by ID\n"
               << "  tick <delta_ms>              - Advance time and sample as needed\n"
               << "  run                          - Start real-time simulation (ticks every 1s)\n"
               << "  stop                         - Stop real-time simulation\n"
@@ -161,14 +164,12 @@ void EdgeShell::listSensors() const
 
 void EdgeShell::stepSensor(const std::string &sensorId)
 {
-    // std::cout << "I am in the stepSensor function\n";
     if (sensors_.find(sensorId) == sensors_.end())
     {
         std::cout << "Sensor not found: " << sensorId << "\n";
         return;
     }
     auto &sensor = sensors_[sensorId];
-    // std::cout << sensor->getSpec().fault.stuck_prob << "\n";
     auto sample = sensor->nextSample(global_time);
     global_time += 1000;
     std::cout << "Sample @ " << global_time << " ms → value: " << sample.value
@@ -295,7 +296,6 @@ void EdgeShell::stepAllSensors()
         return;
     }
 
-    // std::cout << "[Time: " << global_time << " ms]\n";
     for (auto &[id, sensor] : sensors_)
     {
         auto sample = sensor->nextSample(global_time);
@@ -405,4 +405,17 @@ void EdgeShell::setDatabase(MiniDB *db) { db_ = db; }
 const std::unordered_map<std::string, std::unique_ptr<ISensor>> &EdgeShell::getSensors() const
 {
     return sensors_;
+}
+
+bool EdgeShell::removeSensor(const std::string &id)
+{
+    scheduler_.removeScheduledSensor(id);
+
+    auto it = sensors_.find(id);
+    if (it != sensors_.end())
+    {
+        sensors_.erase(it);
+        return true;
+    }
+    return false;
 }
