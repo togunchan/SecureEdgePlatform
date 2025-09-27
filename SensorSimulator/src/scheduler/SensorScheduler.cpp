@@ -50,7 +50,8 @@ namespace sensor
             if (getNow() > entry.next_sample_time_ms)
             {
                 auto sample = entry.sensor->nextSample(getNow());
-                std::cout << "[Tick @ " << getNow() << "]  " << entry.sensor->getSpec().id << " → value: " << sample.value << "\n";
+                std::cout << "[Tick @ " << getNow() << "]  "
+                          << "Sensor " << entry.sensor->id() << " → value: " << sample.value << "\n";
                 entry.next_sample_time_ms += entry.period_ms;
 
                 if (db_)

@@ -55,8 +55,8 @@ void EdgeShell::run()
     registry_->registerCommand(std::make_unique<cli::TickCommand>(*this));
     registry_->registerCommand(std::make_unique<cli::PlotCommand>(*this));
     registry_->registerCommand(std::make_unique<cli::StatusCommand>(scheduler_));
-    registry_->registerCommand(std::make_unique<cli::RunCommand>(scheduler_, is_running_, run_thread_));
-    registry_->registerCommand(std::make_unique<cli::StopCommand>(is_running_, run_thread_));
+    registry_->registerCommand(std::make_unique<cli::RunCommand>(scheduler_, is_running_, run_thread_, cv_, cv_mutex_));
+    registry_->registerCommand(std::make_unique<cli::StopCommand>(*this));
     registry_->registerCommand(std::make_unique<cli::RunPlotCommand>(*this, is_plotting_, plot_thread_));
     registry_->registerCommand(std::make_unique<cli::StopPlotCommand>(is_plotting_, plot_thread_));
     registry_->registerCommand(std::make_unique<cli::LogStatusCommand>(db_));
@@ -172,7 +172,8 @@ void EdgeShell::stepSensor(const std::string &sensorId)
     auto &sensor = sensors_[sensorId];
     auto sample = sensor->nextSample(global_time);
     global_time += 1000;
-    std::cout << "Sample @ " << global_time << " ms → value: " << sample.value
+    std::cout << "Sample @ " << global_time
+              << " ms [" << sensorId << "] → value: " << sample.value
               << "\n";
 }
 
@@ -418,4 +419,24 @@ bool EdgeShell::removeSensor(const std::string &id)
         return true;
     }
     return false;
+}
+
+void EdgeShell::stop()
+{
+    if (!is_running_)
+    {
+        std::cout << "Simulation is not running.\n";
+        return;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(cv_mutex_);
+        is_running_ = false;
+    }
+    cv_.notify_all();
+
+    if (run_thread_.joinable())
+        run_thread_.join();
+
+    std::cout << "Stopped real-time simulation.\n";
 }

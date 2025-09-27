@@ -8,6 +8,7 @@
 #include "commands/CommandRegistry.hpp"
 #include <thread>
 #include <atomic>
+#include <condition_variable>
 #include "../../CppMiniDB/include/cppminidb/MiniDB.hpp"
 
 namespace sensor
@@ -28,6 +29,7 @@ namespace sensor
         void setDatabase(MiniDB *db);
         const std::unordered_map<std::string, std::unique_ptr<ISensor>> &getSensors() const;
         bool removeSensor(const std::string &id);
+        void stop();
 
     private:
         void handleCommand(const std::string &line);
@@ -41,6 +43,8 @@ namespace sensor
         std::atomic<bool> is_plotting_{false};
         std::thread plot_thread_;
         MiniDB *db_ = nullptr;
+        std::condition_variable cv_;
+        std::mutex cv_mutex_;
     };
 
 } // namespace sensor
