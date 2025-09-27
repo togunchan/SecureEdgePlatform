@@ -35,12 +35,12 @@ namespace sensor
         int64_t end_time_ms = 0;
     };
 
-    // A simple temperature sensor simulator that supports sine wave generation and Gaussian noise
-    class SimpleTempSensor : public ISensor
+    // A simple sensor simulator that supports sine wave generation and Gaussian noise
+    class SimpleSensor : public ISensor
     {
     public:
         // Constructor: initializes with a given sensor specification and seeds the RNG
-        explicit SimpleTempSensor(const SensorSpec &spec)
+        explicit SimpleSensor(const SensorSpec &spec)
             : spec_(spec),
               seq_(0),
               rng_(),

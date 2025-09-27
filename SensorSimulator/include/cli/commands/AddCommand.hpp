@@ -21,8 +21,25 @@ namespace cli
                 std::cout << "add <id> <period_ms>" << std::endl;
                 return;
             }
+            std::string sensorId = args[0];
+            std::transform(sensorId.begin(), sensorId.end(), sensorId.begin(), ::toupper);
 
-            shell_.addScheduledSensor(args[0], std::stoull(args[1]));
+            uint64_t period_ms = 1000;
+
+            if (args.size() > 1)
+            {
+                try
+                {
+                    period_ms = std::stoull(args[1]);
+                }
+                catch (const std::exception &e)
+                {
+                    std::cerr << "Invalid period value: " << args[1] << "\n";
+                    return;
+                }
+            }
+
+            shell_.addScheduledSensor(sensorId, period_ms);
         }
 
     private:

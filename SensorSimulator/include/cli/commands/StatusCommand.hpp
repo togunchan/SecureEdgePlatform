@@ -2,7 +2,7 @@
 
 #include "ICommand.hpp"
 #include "scheduler/SensorScheduler.hpp"
-#include "sensors/SimpleTempSensor.hpp"
+#include "sensors/SimpleSensor.hpp"
 #include <iostream>
 
 namespace cli
@@ -27,7 +27,7 @@ namespace cli
             }
 
             const std::string &sensorId = args[0];
-            auto sensor = scheduler_.getScheduledSensor(sensorId);
+            auto sensor = scheduler_.getScheduledSensorAs<sensor::SimpleSensor>(sensorId);
             if (!sensor)
             {
                 std::cout << "Sensor not found: " << sensorId << "\n";

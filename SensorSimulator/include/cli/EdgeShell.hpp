@@ -3,11 +3,13 @@
 #include <unordered_map>
 #include <memory>
 #include <string>
-#include "../sensors/SimpleTempSensor.hpp"
+#include "../sensors/SimpleSensor.hpp"
 #include "../scheduler/SensorScheduler.hpp"
 #include "commands/CommandRegistry.hpp"
 #include <thread>
 #include <atomic>
+#include <condition_variable>
+#include "../../CppMiniDB/include/cppminidb/MiniDB.hpp"
 
 namespace sensor
 {
@@ -24,18 +26,25 @@ namespace sensor
         void addScheduledSensor(const std::string &sensorId, uint64_t period_ms);
         void tickTime(uint64_t delta_ms);
         void plotSensorData(const std::string &sensorId) const;
+        void setDatabase(MiniDB *db);
+        const std::unordered_map<std::string, std::unique_ptr<ISensor>> &getSensors() const;
+        bool removeSensor(const std::string &id);
+        void stop();
 
     private:
         void handleCommand(const std::string &line);
         void addDefaultSensor();
 
-        std::unordered_map<std::string, std::unique_ptr<SimpleTempSensor>> sensors_;
+        std::unordered_map<std::string, std::unique_ptr<ISensor>> sensors_;
         std::unique_ptr<cli::CommandRegistry> registry_;
         sensor::SensorScheduler scheduler_;
         std::atomic<bool> is_running_{false};
         std::thread run_thread_;
         std::atomic<bool> is_plotting_{false};
         std::thread plot_thread_;
+        MiniDB *db_ = nullptr;
+        std::condition_variable cv_;
+        std::mutex cv_mutex_;
     };
 
 } // namespace sensor

@@ -45,6 +45,7 @@ MiniDB::ColumnType MiniDB::columnTypeOf(const std::string &columnName) const
 
 void MiniDB::insertRow(const std::vector<std::string> &values)
 {
+
     if (columns_.empty())
     {
         throw std::runtime_error("Columns must be defined before inserting rows.");
@@ -70,6 +71,8 @@ std::string MiniDB::getTempFilePath() const
 
 void MiniDB::save() const
 {
+    std::lock_guard<std::mutex> lock(mtx_);
+
     std::filesystem::create_directories("data");
     std::ofstream outFile(getTableFilePath(), std::ios::trunc); // overwrite;
     if (!outFile.is_open())
@@ -153,6 +156,7 @@ std::vector<std::map<std::string, std::string>> MiniDB::loadFromDisk() const
 
 std::vector<std::map<std::string, std::string>> MiniDB::selectAll() const
 {
+    std::lock_guard<std::mutex> lock(mtx_);
     std::vector<std::map<std::string, std::string>> result;
 
     for (const auto &row : rows_)
@@ -173,6 +177,7 @@ std::vector<std::map<std::string, std::string>> MiniDB::selectAll() const
 
 void MiniDB::clear()
 {
+
     // Clear the in-memory rows
     rows_.clear();
 
@@ -962,6 +967,7 @@ void MiniDB::importFromJsonToDisk(const std::string &jsonString, bool append)
 void MiniDB::clearMemory()
 {
     rows_.clear();
+    logs_.clear();
 }
 
 void MiniDB::clearDisk(bool keepHeader)
@@ -1059,6 +1065,166 @@ bool MiniDB::tryParseFloat(const std::string &str, double &out)
         return false;
     }
     return false;
+}
+
+void MiniDB::appendLog(const std::string &sensorId,
+                       uint64_t timestampMs,
+                       double value,
+                       const std::vector<std::string> &faults)
+{
+    std::lock_guard<std::mutex> lock(mtx_);
+    std::string faultFlags;
+    for (size_t i = 0; i < faults.size(); ++i)
+    {
+        faultFlags += faults[i];
+        if (i < faults.size() - 1)
+            faultFlags += ",";
+    }
+
+    std::vector<std::string> row;
+    row.push_back(std::to_string(timestampMs));
+    row.push_back(sensorId);
+    row.push_back(std::to_string(value));
+    row.push_back(faultFlags.empty() ? "-" : faultFlags);
+
+    insertRow(row);
+    logs_.push_back(LogEntry{timestampMs, sensorId, value, faults});
+}
+
+const std::vector<LogEntry> &MiniDB::getLogs() const
+{
+    return logs_;
+}
+
+void MiniDB::loadLogsIntoMemory()
+{
+    logs_.clear();
+
+    auto loaded = loadFromDisk();
+    for (const auto &row : loaded)
+    {
+        auto ts = std::stoull(row.at("timestamp_ms"));
+        auto sensorId = row.at("sensor_id");
+        auto value = std::stod(row.at("value"));
+
+        std::vector<std::string> faults;
+        auto faultStr = row.at("fault_flags");
+        if (faultStr != "-" && !faultStr.empty())
+        {
+            std::stringstream faultStream(faultStr);
+            std::string fault;
+            while (std::getline(faultStream, fault, ','))
+            {
+                faults.push_back(fault);
+            }
+        }
+        logs_.push_back(LogEntry{ts, sensorId, value, faults});
+    }
+}
+
+std::vector<LogEntry> MiniDB::getLogsSnapshot() const
+{
+    std::lock_guard<std::mutex> lock(mtx_);
+    return logs_;
+}
+
+std::vector<std::map<std::string, std::string>> MiniDB::selectWhereMulti(const std::vector<Condition> &conditions, bool fromDisk) const
+{
+    auto rows = fromDisk ? loadFromDisk() : selectAll();
+    std::vector<std::map<std::string, std::string>> result;
+
+    for (const auto &row : rows)
+    {
+        bool match = true;
+        for (const auto &condition : conditions)
+        {
+            auto it = row.find(condition.column);
+            if (it == row.end())
+            {
+                match = false;
+                break;
+            }
+
+            ColumnType colType;
+
+            try
+            {
+                colType = columnTypeOf(condition.column);
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << e.what() << '\n';
+                match = false;
+                break;
+            }
+
+            if (condition.op == ">" || condition.op == "<" || condition.op == ">=" || condition.op == "<=")
+            {
+                if (columnTypeOf(condition.column) != ColumnType::Int &&
+                    columnTypeOf(condition.column) != ColumnType::Float)
+                {
+                    throw std::invalid_argument(
+                        "Operator '" + condition.op + "' not valid for non-numeric column '" + condition.column + "'");
+                }
+            }
+
+            const std::string &cell = it->second;
+            if (condition.op == "==")
+            {
+                if (cell != condition.value)
+                {
+                    match = false;
+                    break;
+                }
+            }
+            else if (condition.op == "!=")
+            {
+                if (cell == condition.value)
+                {
+                    match = false;
+                    break;
+                }
+            }
+            else if (condition.op == ">")
+            {
+                if (!(std::stod(cell) > std::stod(condition.value)))
+                {
+                    match = false;
+                    break;
+                }
+            }
+            else if (condition.op == "<")
+            {
+                if (!(std::stod(cell) < std::stod(condition.value)))
+                {
+                    match = false;
+                    break;
+                }
+            }
+            else if (condition.op == ">=")
+            {
+                if (!(std::stod(cell) >= std::stod(condition.value)))
+                {
+                    match = false;
+                    break;
+                }
+            }
+            else if (condition.op == "<=")
+            {
+                if (!(std::stod(cell) <= std::stod(condition.value)))
+                {
+                    match = false;
+                    break;
+                }
+            }
+        }
+
+        if (match)
+        {
+            result.push_back(row);
+        }
+    }
+    return result;
 }
 
 bool NumberValidator::isPureInteger(const std::string &str)

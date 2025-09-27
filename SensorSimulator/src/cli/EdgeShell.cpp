@@ -12,6 +12,14 @@
 #include "../../include/cli/commands/StopCommand.hpp"
 #include "../../include/cli/commands/RunPlotCommand.hpp"
 #include "../../include/cli/commands/StopPlotCommand.hpp"
+#include "../../include/cli/commands/LogStatusCommand.hpp"
+#include "../../include/cli/commands/SaveLogCommand.hpp"
+#include "../../include/cli/commands/LoadLogCommand.hpp"
+#include "../../include/cli/commands/ClearLogCommand.hpp"
+#include "../../include/cli/commands/ExportLogCommand.hpp"
+#include "../../include/cli/commands/QueryLogCommand.hpp"
+#include "../../include/cli/commands/ImportLogCommand.hpp"
+#include "../../include/cli/commands/RemoveCommand.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -21,19 +29,21 @@ using namespace sensor;
 
 static uint64_t global_time = 0;
 
-int main()
-{
-    sensor::EdgeShell shell;
-    shell.run();
-    return 0;
-}
-
 void EdgeShell::run()
 {
     std::cout << "Welcome to EdgeShell - Multi-Sensor Fault Injector\n";
     printHelp();
 
     addDefaultSensor();
+
+    if (db_)
+    {
+        db_->setColumns(
+            {"timestamp_ms", "sensor_id", "value", "fault_flags"},
+            {MiniDB::ColumnType::Int, MiniDB::ColumnType::String,
+             MiniDB::ColumnType::Float, MiniDB::ColumnType::String});
+        scheduler_.setDatabase(db_);
+    }
 
     registry_ = std::make_unique<cli::CommandRegistry>();
     registry_->registerCommand(std::make_unique<cli::ListCommand>(*this));
@@ -45,10 +55,18 @@ void EdgeShell::run()
     registry_->registerCommand(std::make_unique<cli::TickCommand>(*this));
     registry_->registerCommand(std::make_unique<cli::PlotCommand>(*this));
     registry_->registerCommand(std::make_unique<cli::StatusCommand>(scheduler_));
-    registry_->registerCommand(std::make_unique<cli::RunCommand>(scheduler_, is_running_, run_thread_));
-    registry_->registerCommand(std::make_unique<cli::StopCommand>(is_running_, run_thread_));
+    registry_->registerCommand(std::make_unique<cli::RunCommand>(scheduler_, is_running_, run_thread_, cv_, cv_mutex_));
+    registry_->registerCommand(std::make_unique<cli::StopCommand>(*this));
     registry_->registerCommand(std::make_unique<cli::RunPlotCommand>(*this, is_plotting_, plot_thread_));
     registry_->registerCommand(std::make_unique<cli::StopPlotCommand>(is_plotting_, plot_thread_));
+    registry_->registerCommand(std::make_unique<cli::LogStatusCommand>(db_));
+    registry_->registerCommand(std::make_unique<cli::SaveLogCommand>(db_));
+    registry_->registerCommand(std::make_unique<cli::LoadLogCommand>(db_));
+    registry_->registerCommand(std::make_unique<cli::ClearLogCommand>(db_));
+    registry_->registerCommand(std::make_unique<cli::ExportLogCommand>(db_));
+    registry_->registerCommand(std::make_unique<cli::QueryLogCommand>(db_));
+    registry_->registerCommand(std::make_unique<cli::ImportLogCommand>(db_));
+    registry_->registerCommand(std::make_unique<cli::RemoveCommand>(*this));
 
     std::string line;
     while (true)
@@ -71,6 +89,7 @@ void EdgeShell::printHelp() const
               << "                                 e.g. inject spike TEMP-001 5.0 0.3\n"
               << "  reset <id>                   - Reset sensor\n"
               << "  add <id>                     - Add new sensor with given ID\n"
+              << "  remove <id>                  - Remove an existing sensor by ID\n"
               << "  tick <delta_ms>              - Advance time and sample as needed\n"
               << "  run                          - Start real-time simulation (ticks every 1s)\n"
               << "  stop                         - Stop real-time simulation\n"
@@ -78,6 +97,21 @@ void EdgeShell::printHelp() const
               << "  stopplot                     - Stop real-time plot\n"
               << "  plot <id>                    - Plot sensor data\n"
               << "  status <id>                  - Show active faults on given sensor\n"
+              << "  logstatus [filters]          - Show logged sensor entries with optional filters\n"
+              << "                                 e.g. logstatus TEMP-001 last=5\n"
+              << "  logstatus                    - Show last few logged sensor entries\n"
+              << "  savelog                      - Save logs to .tbl file (in ./data folder)\n"
+              << "  loadlog                      - Load logs from disk into memory\n"
+              << "  clearlog                     - Clear all logs from memory and disk\n"
+              << "  exportlog [options]          - Export logs to JSON file\n"
+              << "                                 e.g. exportlog filename=logs.json\n"
+              << "                                 e.g. exportlog source=disk filename=backup.json\n"
+              << "  querylog <conds> [source=..] - Query logs with conditions\n"
+              << "                                 e.g. querylog column=value op== value=25.0\n"
+              << "                                 e.g. querylog column=sensor_id op== value=TEMP-001 source=disk\n"
+              << "  importlog [options]          - Import logs from JSON into memory or disk\n"
+              << "                                 e.g. importlog filename=backup.json\n"
+              << "                                 e.g. importlog target=disk filename=logs.json\n"
               << "  help                         - Show help\n"
               << "  exit                         - Exit program\n";
 }
@@ -106,7 +140,7 @@ void EdgeShell::handleCommand(const std::string &line)
 
 void EdgeShell::addDefaultSensor()
 {
-    SensorSpec spec = makeDefaultSpec();
+    SensorSpec spec = makeDefaultTempSpec();
     spec.id = "TEMP-001";
     spec.type = "TEMP";
     spec.base = "sine";
@@ -114,9 +148,10 @@ void EdgeShell::addDefaultSensor()
     spec.sine_amp = 0.5; // was 1.5
     spec.sine_freq_hz = 1.0 / 60;
     spec.noise.gaussian_sigma = 0.2;
-    sensors_["TEMP-001"] = std::make_unique<SimpleTempSensor>(spec);
-    auto sensor = std::make_unique<SimpleTempSensor>(spec);
-    scheduler_.addScheduledSensor("TEMP-001", std::move(sensor), 1000);
+    auto sensor = std::make_unique<SimpleSensor>(spec);
+    ISensor *sensorPtr = sensor.get();
+    sensors_["TEMP-001"] = std::move(sensor);
+    scheduler_.addScheduledSensor("TEMP-001", sensorPtr, 1000);
 }
 
 void EdgeShell::listSensors() const
@@ -129,17 +164,16 @@ void EdgeShell::listSensors() const
 
 void EdgeShell::stepSensor(const std::string &sensorId)
 {
-    // std::cout << "I am in the stepSensor function\n";
     if (sensors_.find(sensorId) == sensors_.end())
     {
         std::cout << "Sensor not found: " << sensorId << "\n";
         return;
     }
     auto &sensor = sensors_[sensorId];
-    // std::cout << sensor->getSpec().fault.stuck_prob << "\n";
     auto sample = sensor->nextSample(global_time);
     global_time += 1000;
-    std::cout << "Sample @ " << global_time << " ms → value: " << sample.value
+    std::cout << "Sample @ " << global_time
+              << " ms [" << sensorId << "] → value: " << sample.value
               << "\n";
 }
 
@@ -152,7 +186,7 @@ void EdgeShell::injectFault(const std::string &faultType, const std::string &sen
     }
 
     auto &sensor = sensors_[sensorId];
-    auto *scheduledSensor = scheduler_.getScheduledSensor(sensorId);
+    auto *scheduledSensor = scheduler_.getScheduledSensorAs<sensor::SimpleSensor>(sensorId);
 
     if (faultType == "spike")
     {
@@ -227,12 +261,31 @@ void EdgeShell::addScheduledSensor(const std::string &sensorId, uint64_t period_
         return;
     }
 
-    SensorSpec spec = makeDefaultSpec();
+    std::string upperId = sensorId;
+    std::transform(upperId.begin(), upperId.end(), upperId.begin(), ::toupper);
+
+    SensorSpec spec;
+    if (upperId.starts_with("TEMP"))
+    {
+        spec = makeDefaultTempSpec();
+    }
+    else if (upperId.starts_with("PRES"))
+    {
+        spec = makeDefaultPressureSpec();
+    }
+    else
+    {
+        printHelp();
+        std::cout << "Only TEMP and PRES commands are acceptable at the moment...\n";
+
+        return;
+    }
     spec.id = sensorId;
 
-    auto sensor = std::make_unique<SimpleTempSensor>(spec);
-    sensors_[sensorId] = std::make_unique<SimpleTempSensor>(spec);
-    scheduler_.addScheduledSensor(sensorId, std::move(sensor), period_ms);
+    auto sensor = std::make_unique<SimpleSensor>(spec);
+    ISensor *sensorPtr = sensor.get();
+    sensors_[sensorId] = std::move(sensor);
+    scheduler_.addScheduledSensor(sensorId, sensorPtr, period_ms);
     std::cout << "Sensor added: " << sensorId << "\n";
 }
 
@@ -244,7 +297,6 @@ void EdgeShell::stepAllSensors()
         return;
     }
 
-    // std::cout << "[Time: " << global_time << " ms]\n";
     for (auto &[id, sensor] : sensors_)
     {
         auto sample = sensor->nextSample(global_time);
@@ -264,7 +316,7 @@ void EdgeShell::tickTime(uint64_t delta_ms)
 
 void EdgeShell::plotSensorData(const std::string &sensorId) const
 {
-    auto sensor = scheduler_.getScheduledSensor(sensorId);
+    auto sensor = scheduler_.getScheduledSensorAs<sensor::SimpleSensor>(sensorId);
     if (!sensor)
     {
         std::cout << "Sensor not found: " << sensorId << "\n";
@@ -347,4 +399,44 @@ void EdgeShell::plotSensorData(const std::string &sensorId) const
         }
     }
     std::cout << "\n";
+}
+
+void EdgeShell::setDatabase(MiniDB *db) { db_ = db; }
+
+const std::unordered_map<std::string, std::unique_ptr<ISensor>> &EdgeShell::getSensors() const
+{
+    return sensors_;
+}
+
+bool EdgeShell::removeSensor(const std::string &id)
+{
+    scheduler_.removeScheduledSensor(id);
+
+    auto it = sensors_.find(id);
+    if (it != sensors_.end())
+    {
+        sensors_.erase(it);
+        return true;
+    }
+    return false;
+}
+
+void EdgeShell::stop()
+{
+    if (!is_running_)
+    {
+        std::cout << "Simulation is not running.\n";
+        return;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(cv_mutex_);
+        is_running_ = false;
+    }
+    cv_.notify_all();
+
+    if (run_thread_.joinable())
+        run_thread_.join();
+
+    std::cout << "Stopped real-time simulation.\n";
 }

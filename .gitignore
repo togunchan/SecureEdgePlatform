@@ -42,3 +42,5 @@ Testing/
 *.tmp
 *.bak
 *.swp
+
+*.tcl

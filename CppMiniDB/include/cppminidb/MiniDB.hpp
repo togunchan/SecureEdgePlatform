@@ -42,6 +42,22 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <mutex>
+
+struct LogEntry
+{
+    uint64_t timestampMs;
+    std::string sensorId;
+    double value;
+    std::vector<std::string> faults;
+};
+
+struct Condition
+{
+    std::string column;
+    std::string op;
+    std::string value;
+};
 
 /**
  * @class MiniDB
@@ -68,6 +84,8 @@ public:
      * Creates a new database object tied to a specific table identifier.
      */
     MiniDB(const std::string &tableName);
+
+    MiniDB() = default;
 
     /**
      * @brief Sets schema with names only; defaults all column types to String.
@@ -468,7 +486,23 @@ public:
      */
     static bool tryParseFloat(const std::string &s, double &out);
 
+    void appendLog(const std::string &sensorId,
+                   uint64_t timestampMs,
+                   double value,
+                   const std::vector<std::string> &faults);
+
+    const std::vector<LogEntry> &getLogs() const;
+
+    void loadLogsIntoMemory();
+
+    // Preserves existing getLogs() behavior. Introduces getLogsSnapshot() to provide a thread-safe copy for consistent iteration under concurrent access.
+    std::vector<LogEntry> getLogsSnapshot() const;
+
+    std::vector<std::map<std::string, std::string>> selectWhereMulti(const std::vector<Condition> &conditions, bool fromDisk) const;
+
 private:
+    mutable std::mutex mtx_; // "mutable" to allow locking in const methods
+
     /**
      * @brief Stores the name of the table.
      *
@@ -498,6 +532,8 @@ private:
     std::string getTempFilePath() const;
 
     std::vector<ColumnType> columnTypes_;
+
+    std::vector<LogEntry> logs_;
 };
 
 /**

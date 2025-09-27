@@ -3,7 +3,7 @@
 
 namespace sensor
 {
-    void SensorScheduler::addScheduledSensor(const std::string &id, std::unique_ptr<SimpleTempSensor> sensor, uint64_t period_ms)
+    void SensorScheduler::addScheduledSensor(const std::string &id, ISensor *sensor, uint64_t period_ms)
     {
         if (schedule_.count(id))
         {
@@ -12,7 +12,7 @@ namespace sensor
         }
 
         SensorEntry entry;
-        entry.sensor = std::move(sensor);
+        entry.sensor = sensor;
         entry.period_ms = period_ms;
         entry.next_sample_time_ms = current_time_ms_;
         schedule_[id] = std::move(entry);
@@ -39,16 +39,26 @@ namespace sensor
     void SensorScheduler::tick(uint64_t delta_ms)
     {
         current_time_ms_ += delta_ms;
-        // std::cout << "[Tick @ " << current_time_ms_ << " ms]\n";
 
         for (auto &[id, entry] : schedule_)
         {
-            if (current_time_ms_ > entry.next_sample_time_ms)
+            if (!entry.sensor)
             {
-                auto sample = entry.sensor->nextSample(current_time_ms_);
-                // std::cout << "  " << id << " → value: " << sample.value << "\n";
-                std::cout << "[Tick @ " << current_time_ms_ << "]  " << entry.sensor.get()->getSpec().id << " → value: " << sample.value << "\n";
+                std::cerr << "NULL sensor for id=" << id << "\n";
+                continue;
+            }
+            if (getNow() > entry.next_sample_time_ms)
+            {
+                auto sample = entry.sensor->nextSample(getNow());
+                std::cout << "[Tick @ " << getNow() << "]  "
+                          << "Sensor " << entry.sensor->id() << " → value: " << sample.value << "\n";
                 entry.next_sample_time_ms += entry.period_ms;
+
+                if (db_)
+                {
+                    auto faults = entry.sensor->getActiveFaults(getNow());
+                    db_->appendLog(id, getNow(), sample.value, faults);
+                }
             }
         }
     }
@@ -63,12 +73,12 @@ namespace sensor
         }
     }
 
-    SimpleTempSensor *SensorScheduler::getScheduledSensor(const std::string &id) const
+    SimpleSensor *SensorScheduler::getScheduledSensor(const std::string &id) const
     {
         auto it = schedule_.find(id);
         if (it != schedule_.end())
         {
-            return it->second.sensor.get();
+            return dynamic_cast<SimpleSensor *>(it->second.sensor);
         }
         return nullptr;
     }
@@ -76,6 +86,21 @@ namespace sensor
     uint64_t SensorScheduler::getNow() const
     {
         return current_time_ms_;
+    }
+
+    void SensorScheduler::setDatabase(MiniDB *db)
+    {
+        db_ = db;
+    }
+
+    void SensorScheduler::removeScheduledSensor(const std::string &id)
+    {
+        auto it = schedule_.find(id);
+        if (it != schedule_.end())
+        {
+            schedule_.erase(it);
+            std::cout << "Sensor unscheduled: " << id << "\n";
+        }
     }
 
 }
