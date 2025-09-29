@@ -80,23 +80,6 @@ catch_discover_tests(test_sensors)
 catch_discover_tests(test_cli)
 
 # --------------------------
-# CLI executable
-# --------------------------
-add_executable(EdgeCLI
-    src/cli/EdgeCLI.cpp
-)
-
-target_include_directories(EdgeCLI
-    PRIVATE
-        ${PROJECT_SOURCE_DIR}/include
-)
-
-target_link_libraries(EdgeCLI
-    PRIVATE
-        sensor_core
-)
-
-# --------------------------
 # Shell executable
 # --------------------------
 add_executable(EdgeShell
