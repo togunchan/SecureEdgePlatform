@@ -1,0 +1,12 @@
+target_sources(SecureBootSimulator
+    PRIVATE
+        src/BootSimulator.cpp
+        src/BootStage.cpp
+        src/BootConfig.cpp
+        src/SignatureVerifier.cpp
+    PUBLIC
+        include/secureboot/BootSimulator.hpp
+        include/secureboot/BootStage.hpp
+        include/secureboot/BootConfig.hpp
+        include/secureboot/SignatureVerifier.hpp
+)
