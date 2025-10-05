@@ -13,7 +13,7 @@ namespace secureboot
     class SignatureVerifier
     {
     public:
-        SignatureVerifier::SignatureVerifier(HashMethod method)
+        SignatureVerifier(HashMethod method)
             : method_(method) {}
         std::string computeHash(const std::string &filePath) const;
 
