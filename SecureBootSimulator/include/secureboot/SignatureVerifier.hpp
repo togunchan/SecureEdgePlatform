@@ -13,8 +13,13 @@ namespace secureboot
     class SignatureVerifier
     {
     public:
-        std::string computeHash(const std::string &filePath, HashMethod method = HashMethod::SHA256) const;
+        SignatureVerifier::SignatureVerifier(HashMethod method)
+            : method_(method) {}
+        std::string computeHash(const std::string &filePath) const;
 
         bool compareHash(const std::string &actual, const std::string &expected) const;
+
+    private:
+        HashMethod method_;
     };
 } // namespace secureboot

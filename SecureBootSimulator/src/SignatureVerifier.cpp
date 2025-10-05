@@ -7,7 +7,7 @@
 
 namespace secureboot
 {
-    std::string SignatureVerifier::computeHash(const std::string &filePath, HashMethod method) const
+    std::string SignatureVerifier::computeHash(const std::string &filePath) const
     {
         // read file as binary
         std::ifstream file(filePath, std::ios::binary);
@@ -21,11 +21,11 @@ namespace secureboot
 
         std::string content = buffer.str();
 
-        if (method == HashMethod::SHA256)
+        if (method_ == HashMethod::SHA256)
         {
             return sha256(content);
         }
-        else if (method == HashMethod::CRC32)
+        else if (method_ == HashMethod::CRC32)
         {
             throw std::runtime_error("CRC32 not yet implemented.");
         }
