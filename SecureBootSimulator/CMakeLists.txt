@@ -53,3 +53,13 @@ target_compile_definitions(test_secureboot
 include(CTest)
 include(Catch)
 catch_discover_tests(test_secureboot)
+
+add_executable(SecureBootRunner
+    src/main.cpp
+)
+
+target_link_libraries(SecureBootRunner
+    PRIVATE secureboot
+)
+
+target_include_directories(SecureBootRunner PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
