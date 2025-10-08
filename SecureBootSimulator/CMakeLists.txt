@@ -22,7 +22,10 @@ target_include_directories(secureboot
 
 
 # === Test executable ===
-add_executable(test_secureboot tests/test_bootsimulator.cpp)
+add_executable(test_secureboot
+    tests/test_bootsimulator.cpp
+    tests/test_boot_config.cpp
+)
 
 # === Include test & third-party headers ===
 target_include_directories(test_secureboot 
