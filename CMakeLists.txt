@@ -6,5 +6,6 @@ add_subdirectory(third_party/Catch2 ${CMAKE_BINARY_DIR}/Catch2-build)
 
 add_subdirectory(CppMiniDB)
 add_subdirectory(SensorSimulator)
+add_subdirectory(EdgeAgent)
 
 include(CTest)
