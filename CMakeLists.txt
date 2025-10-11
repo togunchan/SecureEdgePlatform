@@ -8,5 +8,6 @@ add_subdirectory(CppMiniDB)
 add_subdirectory(SensorSimulator)
 add_subdirectory(EdgeAgent)
 add_subdirectory(SecureBootSimulator)
+add_subdirectory(EdgeGateway)
 
 include(CTest)
