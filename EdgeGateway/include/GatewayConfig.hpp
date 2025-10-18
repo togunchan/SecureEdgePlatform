@@ -14,12 +14,12 @@ namespace channel
     class GatewayConfig
     {
     public:
+        GatewayConfig() = default;
         GatewayConfig(std::vector<ChannelConfig> channels) : channels_(std::move(channels)) {};
 
-        std::vector<ChannelConfig> getChannels() const
-        {
-            return channels_;
-        }
+        bool loadFromFile(const std::string &path);
+
+        const std::vector<ChannelConfig> &getChannels() const;
 
     private:
         std::vector<ChannelConfig> channels_;

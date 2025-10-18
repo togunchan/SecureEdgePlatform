@@ -65,5 +65,4 @@
         "__assertion_handler": "cpp",
         "condition_variable": "cpp"
     },
-    "cmake.sourceDirectory": "/Users/togunchan/Desktop/Projelerim/SecureEdgePlatform/CppMiniDB"
 }
