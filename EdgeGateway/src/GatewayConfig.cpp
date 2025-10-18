@@ -5,12 +5,12 @@
 
 namespace channel
 {
-    bool GatewayConfig::loadFromFile(const std::string &filePath)
+    bool GatewayConfig::loadFromFile(const std::string &path)
     {
-        std::ifstream file(filePath);
+        std::ifstream file(path);
         if (!file)
         {
-            std::cerr << "[GatewayConfig] Failed to open file: " << filePath << "\n";
+            std::cerr << "[GatewayConfig] Failed to open file: " << path << "\n";
             return false;
         };
 

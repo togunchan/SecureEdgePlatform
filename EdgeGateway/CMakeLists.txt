@@ -3,6 +3,7 @@ add_library(edgegateway
     src/FileChannel.cpp
     src/main_gateway.cpp
     src/SensorLogRow.cpp
+    src/GatewayConfig.cpp
 )
 
 target_include_directories(edgegateway PUBLIC
