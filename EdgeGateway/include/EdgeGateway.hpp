@@ -1,7 +1,5 @@
 #pragma once
-
-#include <GatewayConfig.hpp>
-#include <SensorLogRow.hpp>
+#include <IGatewayChannel.hpp>
 
 namespace gateway
 {
@@ -11,5 +9,6 @@ namespace gateway
         void start();
 
     private:
+        std::vector<std::unique_ptr<channel::IGatewayChannel>> channels_;
     };
 } // namespace gateway
