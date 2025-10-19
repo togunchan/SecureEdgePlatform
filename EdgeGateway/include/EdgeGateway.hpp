@@ -1,5 +1,6 @@
 #pragma once
 #include <IGatewayChannel.hpp>
+#include <scheduler/SensorScheduler.hpp>
 
 namespace gateway
 {
@@ -10,5 +11,6 @@ namespace gateway
 
     private:
         std::vector<std::unique_ptr<channel::IGatewayChannel>> channels_;
+        sensor::SensorScheduler scheduler_;
     };
 } // namespace gateway

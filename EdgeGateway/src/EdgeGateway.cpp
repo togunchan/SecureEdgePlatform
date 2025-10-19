@@ -6,6 +6,7 @@
 #include <EdgeGateway.hpp>
 #include <memory>
 #include <GatewayConfig.hpp>
+#include <sensors/Spec.hpp>
 
 namespace gateway
 {
@@ -55,15 +56,20 @@ namespace gateway
             return;
         }
 
-        cppminidb::SensorLogRow sampleRow;
-        sampleRow.timestamp_ms = 1760930400000;
-        sampleRow.sensor_id = "temp_01";
-        sampleRow.value = 24.7;
-
-        for (const auto &channel : channels_)
+        scheduler_.onSample = [this](const cppminidb::SensorLogRow &row)
         {
-            channel->publish(sampleRow);
-        }
+            for (const auto &channel : channels_)
+            {
+                channel->publish(row);
+            }
+        };
+        auto spec = sensor::makeDefaultTempSpec();
+        spec.id = "TEMP-001";
+        auto sensor = std::make_unique<sensor::SimpleSensor>(spec);
+        sensor::ISensor *sensorPtr = sensor.get();
+        scheduler_.addScheduledSensor(spec.id, sensorPtr, 1000);
+        std::cout << "Sensor added: " << spec.id << "\n";
+        scheduler_.tick(1000);
     }
 
 } // namespace gateway

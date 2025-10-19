@@ -4,3 +4,9 @@
     "timestamp": 1760930400000,
     "value": 24.7
 }
+{
+    "faultType": [],
+    "sensorId": "TEMP-001",
+    "timestamp": 1000,
+    "value": 25.0
+}

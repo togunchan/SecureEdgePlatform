@@ -4,8 +4,10 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "../sensors/SimpleSensor.hpp"
-#include "../../CppMiniDB/include/cppminidb/MiniDB.hpp"
+#include <sensors/SimpleSensor.hpp>
+#include <cppminidb/MiniDB.hpp>
+#include <functional>
+#include <cppminidb/SensorLogRow.hpp>
 
 namespace sensor
 {
@@ -43,6 +45,8 @@ namespace sensor
             }
             return nullptr;
         }
+
+        std::function<void(const cppminidb::SensorLogRow &)> onSample;
 
     private:
         struct SensorEntry

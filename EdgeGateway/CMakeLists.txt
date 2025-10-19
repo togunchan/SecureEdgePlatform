@@ -10,12 +10,16 @@ add_library(edgegateway
 target_include_directories(edgegateway PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/EdgeAgent/include>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/SensorSimulator/include>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/CppMiniDB/include>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/third_party/json/include>  
 )
 
 target_link_libraries(edgegateway
-    PUBLIC minidb
+    PUBLIC
+        minidb
+        sensor_impl
 )
 
 add_executable(EdgeGatewayRunner src/main_gateway.cpp)
-target_link_libraries(EdgeGatewayRunner PUBLIC edgegateway minidb)
+target_link_libraries(EdgeGatewayRunner PUBLIC edgegateway)

@@ -3,18 +3,16 @@ project(CppMiniDB)
 
 set(CMAKE_CXX_STANDARD 20)
 
-# Include headers
-include_directories(include)
-
 # Source files
 add_library(minidb
     src/MiniDB.cpp
 )
 
 # Add nlohmann/json include path (single header mode)
-target_include_directories(minidb 
-    PRIVATE 
-    ${PROJECT_SOURCE_DIR}/../third_party/json/single_include
+target_include_directories(minidb
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/../third_party/json/single_include
 )
 
 # Test executable
