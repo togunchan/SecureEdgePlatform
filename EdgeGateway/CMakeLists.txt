@@ -23,3 +23,19 @@ target_link_libraries(edgegateway
 
 add_executable(EdgeGatewayRunner src/main_gateway.cpp)
 target_link_libraries(EdgeGatewayRunner PUBLIC edgegateway)
+
+add_executable(test_edgegateway
+    tests/test_gateway.cpp
+)
+
+target_link_libraries(test_edgegateway
+    PRIVATE
+        Catch2WithMain
+        edge_agent
+        edgegateway
+)
+
+if(BUILD_TESTING)
+    include(Catch)
+    catch_discover_tests(test_edgegateway TEST_PREFIX EdgeGateway::)
+endif()

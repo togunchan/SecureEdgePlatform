@@ -1,4 +1,3 @@
-#include <EdgeGateway.hpp>
 #include <iostream>
 #include <ConsoleChannel.hpp>
 #include <FileChannel.hpp>
@@ -70,6 +69,28 @@ namespace gateway
         scheduler_.addScheduledSensor(spec.id, sensorPtr, 1000);
         std::cout << "Sensor added: " << spec.id << "\n";
         scheduler_.tick(1000);
+    }
+
+    void EdgeGateway::setChannelsForTest(std::unique_ptr<channel::IGatewayChannel> ch)
+    {
+        channels_.push_back(std::move(ch));
+    }
+
+    void EdgeGateway::setSampleCallbackForTest()
+    {
+        scheduler_.onSample = [this](const cppminidb::SensorLogRow &row)
+        {
+            for (const auto &channel : channels_)
+            {
+                channel->publish(row);
+            }
+        };
+    }
+
+    void EdgeGateway::injectTestSample(const cppminidb::SensorLogRow &row)
+    {
+        if (scheduler_.onSample)
+            scheduler_.onSample(row);
     }
 
 } // namespace gateway

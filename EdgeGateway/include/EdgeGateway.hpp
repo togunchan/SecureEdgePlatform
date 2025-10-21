@@ -8,6 +8,9 @@ namespace gateway
     {
     public:
         void start();
+        void setChannelsForTest(std::unique_ptr<channel::IGatewayChannel> ch);
+        void setSampleCallbackForTest();
+        void injectTestSample(const cppminidb::SensorLogRow &row);
 
     private:
         std::vector<std::unique_ptr<channel::IGatewayChannel>> channels_;
