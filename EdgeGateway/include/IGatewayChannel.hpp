@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cppminidb/SensorLogRow.hpp>
-#include <vector>
 
 namespace channel
 {

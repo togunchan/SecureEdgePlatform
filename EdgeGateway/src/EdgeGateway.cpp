@@ -6,6 +6,21 @@
 #include <memory>
 #include <GatewayConfig.hpp>
 #include <sensors/Spec.hpp>
+#include <csignal>
+#include <thread>
+
+namespace
+{
+    std::atomic<bool> keepRunning = true;
+    void handleSignal(int signal)
+    {
+        if (signal == SIGINT)
+        {
+            std::cout << "\n[EdgeGateway] SIGINT received. Stopping loop...\n";
+            keepRunning = false;
+        }
+    }
+}
 
 namespace gateway
 {
@@ -64,11 +79,18 @@ namespace gateway
         };
         auto spec = sensor::makeDefaultTempSpec();
         spec.id = "TEMP-001";
+        if (sensors_.find(spec.id) != sensors_.end())
+        {
+            std::cerr << "[EdgeGateway] Sensor already registered: " << spec.id << "\n";
+            return;
+        }
+
         auto sensor = std::make_unique<sensor::SimpleSensor>(spec);
         sensor::ISensor *sensorPtr = sensor.get();
+
+        sensors_.emplace(spec.id, std::move(sensor));
         scheduler_.addScheduledSensor(spec.id, sensorPtr, 1000);
         std::cout << "Sensor added: " << spec.id << "\n";
-        scheduler_.tick(1000);
     }
 
     void EdgeGateway::setChannelsForTest(std::unique_ptr<channel::IGatewayChannel> ch)
@@ -91,6 +113,18 @@ namespace gateway
     {
         if (scheduler_.onSample)
             scheduler_.onSample(row);
+    }
+
+    void EdgeGateway::runLoop()
+    {
+        std::signal(SIGINT, handleSignal);
+        std::cout << "[EdgeGateway] Starting run loop. Press Ctrl+C to exit.\n";
+        uint64_t tick_interval_ms = 1000;
+        while (keepRunning)
+        {
+            scheduler_.tick(tick_interval_ms);
+            std::this_thread::sleep_for(std::chrono::milliseconds(tick_interval_ms));
+        }
     }
 
 } // namespace gateway
