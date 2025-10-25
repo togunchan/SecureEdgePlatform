@@ -8,6 +8,7 @@
 #include <sensors/Spec.hpp>
 #include <csignal>
 #include <thread>
+#include <AgentChannel.hpp>
 
 namespace
 {
@@ -28,7 +29,7 @@ namespace gateway
     {
         channel::GatewayConfig config(std::vector<channel::ChannelConfig>{});
 
-        const std::string configPath = "../EdgeGateway/data/gateway_config.json";
+        const std::string configPath = "EdgeGateway/data/gateway_config.json";
 
         if (!config.loadFromFile(configPath))
         {
@@ -58,6 +59,11 @@ namespace gateway
                 }
                 channels_.push_back(std::make_unique<channel::FileChannel>(cfg.path));
             }
+            else if (cfg.type == "agent")
+            {
+                std::cout << "[EdgeGateway] Adding AgentChannel...\n";
+                channels_.push_back(std::make_unique<channel::AgentChannel>(&agent_));
+            }
             else
             {
                 std::cerr << "[EdgeGateway] Unknown channel type: " << cfg.type << "\n";
@@ -70,8 +76,13 @@ namespace gateway
             return;
         }
 
+        running_.store(false);
         scheduler_.onSample = [this](const cppminidb::SensorLogRow &row)
         {
+            if (!running_.load())
+            {
+                return;
+            }
             for (const auto &channel : channels_)
             {
                 channel->publish(row);
@@ -87,7 +98,6 @@ namespace gateway
 
         auto sensor = std::make_unique<sensor::SimpleSensor>(spec);
         sensor::ISensor *sensorPtr = sensor.get();
-
         sensors_.emplace(spec.id, std::move(sensor));
         scheduler_.addScheduledSensor(spec.id, sensorPtr, 1000);
         std::cout << "Sensor added: " << spec.id << "\n";
@@ -100,8 +110,13 @@ namespace gateway
 
     void EdgeGateway::setSampleCallbackForTest()
     {
+        running_.store(true);
         scheduler_.onSample = [this](const cppminidb::SensorLogRow &row)
         {
+            if (!running_.load())
+            {
+                return;
+            }
             for (const auto &channel : channels_)
             {
                 channel->publish(row);
@@ -118,6 +133,8 @@ namespace gateway
     void EdgeGateway::runLoop()
     {
         std::signal(SIGINT, handleSignal);
+        keepRunning = true;
+        running_.store(true);
         std::cout << "[EdgeGateway] Starting run loop. Press Ctrl+C to exit.\n";
         uint64_t tick_interval_ms = 1000;
         while (keepRunning)
@@ -125,6 +142,7 @@ namespace gateway
             scheduler_.tick(tick_interval_ms);
             std::this_thread::sleep_for(std::chrono::milliseconds(tick_interval_ms));
         }
+        running_.store(false);
     }
 
 } // namespace gateway

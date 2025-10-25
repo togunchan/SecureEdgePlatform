@@ -6,6 +6,9 @@
     {
       "type": "file",
       "path": "logs/output.json"
+    },
+    {
+      "type": "agent"
     }
   ]
 }

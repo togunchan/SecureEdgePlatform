@@ -5,6 +5,7 @@ add_library(edgegateway
     src/SensorLogRow.cpp
     src/GatewayConfig.cpp
     src/EdgeGateway.cpp
+    src/AgentChannel.cpp
 )
 
 target_include_directories(edgegateway PUBLIC
@@ -19,6 +20,7 @@ target_link_libraries(edgegateway
     PUBLIC
         minidb
         sensor_impl
+        edge_agent
 )
 
 add_executable(EdgeGatewayRunner src/main_gateway.cpp)
@@ -31,7 +33,6 @@ add_executable(test_edgegateway
 target_link_libraries(test_edgegateway
     PRIVATE
         Catch2WithMain
-        edge_agent
         edgegateway
 )
 
