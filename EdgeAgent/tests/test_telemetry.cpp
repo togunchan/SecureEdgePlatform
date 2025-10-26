@@ -8,10 +8,10 @@
 int main()
 {
     std::vector<cppminidb::SensorLogRow> logs = {
-        {1695979200000, "sensor-001", 36.5, ""},
-        {1695979205000, "sensor-001", 36.9, "spike"},
-        {1695979210000, "sensor-002", 20.3, "dropout"},
-        {1695979215000, "sensor-003", 25.0, ""}};
+        {1695979200000, "sensor-001", 36.5, {""}},
+        {1695979205000, "sensor-001", 36.9, {"spike"}},
+        {1695979210000, "sensor-002", 20.3, {"dropout"}},
+        {1695979215000, "sensor-003", 25.0, {""}}};
 
     edgeagent::TelemetryPublisher publisher;
 

@@ -59,6 +59,17 @@ namespace sensor
                     auto faults = entry.sensor->getActiveFaults(getNow());
                     db_->appendLog(id, getNow(), sample.value, faults);
                 }
+
+                if (onSample)
+                {
+                    cppminidb::SensorLogRow row;
+                    row.timestamp_ms = getNow();
+                    row.sensor_id = id;
+                    row.value = sample.value;
+                    row.fault_flags = entry.sensor->getActiveFaults(getNow());
+
+                    onSample(row);
+                }
             }
         }
     }

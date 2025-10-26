@@ -1,14 +1,12 @@
 add_library(edge_agent
     src/TelemetryPublisher.cpp
+    src/EdgeAgent.cpp
 )
 
 target_include_directories(edge_agent PUBLIC
     ${PROJECT_SOURCE_DIR}/EdgeAgent/include
     ${PROJECT_SOURCE_DIR}/CppMiniDB/include
     ${PROJECT_SOURCE_DIR}/third_party/json/single_include
-)
-
-target_link_libraries(edge_agent
 )
 
 target_compile_features(edge_agent PRIVATE cxx_std_20)

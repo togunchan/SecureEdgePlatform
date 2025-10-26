@@ -1,0 +1,14 @@
+{
+  "channels": [
+    {
+      "type": "console"
+    },
+    {
+      "type": "file",
+      "path": "logs/output.json"
+    },
+    {
+      "type": "agent"
+    }
+  ]
+}
