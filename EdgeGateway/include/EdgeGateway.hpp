@@ -13,11 +13,12 @@ namespace gateway
     class EdgeGateway
     {
     public:
-        void start();
+        void start(const std::string &configPath);
         void setChannelsForTest(std::unique_ptr<channel::IGatewayChannel> ch);
         void setSampleCallbackForTest();
         void injectTestSample(const cppminidb::SensorLogRow &row);
         void runLoop();
+        void stopLoop();
 
     private:
         std::vector<std::unique_ptr<channel::IGatewayChannel>> channels_;

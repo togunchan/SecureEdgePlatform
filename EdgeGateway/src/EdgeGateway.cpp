@@ -6,34 +6,28 @@
 #include <memory>
 #include <GatewayConfig.hpp>
 #include <sensors/Spec.hpp>
-#include <csignal>
 #include <thread>
 #include <AgentChannel.hpp>
+#include <filesystem>
 
 namespace
 {
-    std::atomic<bool> keepRunning = true;
-    void handleSignal(int signal)
-    {
-        if (signal == SIGINT)
-        {
-            std::cout << "\n[EdgeGateway] SIGINT received. Stopping loop...\n";
-            keepRunning = false;
-        }
-    }
+    std::atomic<bool> keepRunning{false};
 }
 
 namespace gateway
 {
-    void EdgeGateway::start()
+    void EdgeGateway::start(const std::string &configPath)
     {
         channel::GatewayConfig config(std::vector<channel::ChannelConfig>{});
 
-        const std::string configPath = "EdgeGateway/data/gateway_config.json";
+        std::filesystem::path pathToUse = configPath.empty()
+                                              ? (std::filesystem::path(__FILE__).parent_path().parent_path() / "data" / "gateway_config.json")
+                                              : std::filesystem::path(configPath);
 
-        if (!config.loadFromFile(configPath))
+        if (!config.loadFromFile(pathToUse.string()))
         {
-            std::cerr << "[EdgeGateway] Failed to load gateway configuration.\n";
+            std::cerr << "[EdgeGateway] Failed to load gateway configuration from: " << pathToUse.string() << "\n";
             return;
         }
 
@@ -132,17 +126,32 @@ namespace gateway
 
     void EdgeGateway::runLoop()
     {
-        std::signal(SIGINT, handleSignal);
-        keepRunning = true;
-        running_.store(true);
+        if (keepRunning.exchange(true))
+        {
+            std::cerr << "[EdgeGateway] runLoop already active. Ignoring duplicate start request.\n";
+            return;
+        }
+        running_.store(true, std::memory_order_release);
         std::cout << "[EdgeGateway] Starting run loop. Press Ctrl+C to exit.\n";
-        uint64_t tick_interval_ms = 1000;
-        while (keepRunning)
+        const uint64_t tick_interval_ms = 1000;
+        while (keepRunning.load(std::memory_order_acquire))
         {
             scheduler_.tick(tick_interval_ms);
+            if (!keepRunning.load(std::memory_order_acquire))
+                break;
             std::this_thread::sleep_for(std::chrono::milliseconds(tick_interval_ms));
         }
-        running_.store(false);
+        running_.store(false, std::memory_order_release);
+        keepRunning.store(false, std::memory_order_release);
+        std::cout << "[EdgeGateway] Run loop stopped.\n";
+    }
+
+    void EdgeGateway::stopLoop()
+    {
+        if (keepRunning.exchange(false))
+        {
+            std::cout << "[EdgeGateway] Stop requested. Waiting for loop to exit...\n";
+        }
     }
 
 } // namespace gateway

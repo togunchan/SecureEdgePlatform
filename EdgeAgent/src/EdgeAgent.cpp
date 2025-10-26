@@ -6,7 +6,6 @@ namespace edgeagent
     void EdgeAgent::receive(const cppminidb::SensorLogRow &row)
     {
         buffer_.push_back(row);
-        std::cout << "[EdgeAgent] Data which has been pushed back to buffer_ is obtained from the function-> publish(const cppminidb::SensorLogRow &row) const in AgentChannel " << std::endl;
     }
 
     void EdgeAgent::flushToConsole()

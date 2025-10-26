@@ -18,7 +18,6 @@ namespace channel
                         std::cerr << "[AgentChannel] No valid EdgeAgent instance. Skipping publish.\n";
                         return;
                 }
-                std::cout << "[AgentChannel] Sending SensorLogRow to receive(const cppminidb::SensorLogRow &row) function of EdgeAgent object created in EdgeGateway." << std::endl;
                 agent_->receive(row);
         }
 } // namespace channel
