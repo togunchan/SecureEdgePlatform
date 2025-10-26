@@ -16,6 +16,7 @@ public:
 
 private:
     void runLoop();
+    bool bootPhase();
     gateway::EdgeGateway gateway_;
     edgeagent::EdgeAgent agent_;
 

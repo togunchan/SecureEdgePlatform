@@ -15,9 +15,10 @@ add_library(secureboot
 )
 
 target_include_directories(secureboot
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
     PRIVATE
-    ${PROJECT_SOURCE_DIR}/include
-    ${PROJECT_SOURCE_DIR}/../third_party/json/single_include
+        ${CMAKE_SOURCE_DIR}/third_party/json/single_include
 )
 
 
