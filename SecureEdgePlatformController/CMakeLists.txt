@@ -1,5 +1,6 @@
- add_library(platform_controller
+add_library(platform_controller
     src/SecureEdgePlatformController.cpp
+    src/shell/PlatformShell.cpp
 )
 
 target_include_directories(platform_controller PUBLIC

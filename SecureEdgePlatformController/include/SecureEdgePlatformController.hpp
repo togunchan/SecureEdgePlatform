@@ -15,6 +15,8 @@ public:
     void stop();
 
 private:
+    friend class PlatformShell;
+
     void runLoop();
     bool bootPhase();
     gateway::EdgeGateway gateway_;
