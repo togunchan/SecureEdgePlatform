@@ -1,4 +1,6 @@
 #include <shell/PlatformShell.hpp>
+#include <cli/commands/ListCommand.hpp>
+#include <cli/commands/CommandRegistry.hpp>
 
 PlatformShell::PlatformShell(SecureEdgePlatformController &controller) : controller_(controller)
 {
@@ -24,6 +26,10 @@ void PlatformShell::registerCommands()
                       { controller_.stop();
                         std::cout << "[Shell] Exiting...\n";
                         std::exit(0); });
+
+    cli::CommandRegistry registry;
+    registry.registerCommand(std::make_unique<cli::ListCommand>(edgeShell_));
+    std::cout << "[Shell] Integrated ListCommand from SensorSimulator.\n";
 }
 
 void PlatformShell::run()
