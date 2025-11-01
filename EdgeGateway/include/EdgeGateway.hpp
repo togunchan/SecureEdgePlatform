@@ -19,6 +19,8 @@ namespace gateway
         void injectTestSample(const cppminidb::SensorLogRow &row);
         void runLoop();
         void stopLoop();
+        sensor::SensorScheduler &getScheduler();
+        const sensor::SensorScheduler &getScheduler() const;
 
     private:
         std::vector<std::unique_ptr<channel::IGatewayChannel>> channels_;

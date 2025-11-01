@@ -13,9 +13,14 @@ public:
 
     void start();
     void stop();
+    gateway::EdgeGateway &getGateway();
+    const gateway::EdgeGateway &getGateway() const;
 
 private:
+    friend class PlatformShell;
+
     void runLoop();
+    bool bootPhase();
     gateway::EdgeGateway gateway_;
     edgeagent::EdgeAgent agent_;
 

@@ -84,6 +84,17 @@ namespace sensor
         }
     }
 
+    std::vector<std::string> SensorScheduler::getSensorIds() const
+    {
+        std::vector<std::string> ids;
+        ids.reserve(schedule_.size());
+        for (const auto &pair : schedule_)
+        {
+            ids.push_back(pair.first);
+        }
+        return ids;
+    }
+
     SimpleSensor *SensorScheduler::getScheduledSensor(const std::string &id) const
     {
         auto it = schedule_.find(id);
