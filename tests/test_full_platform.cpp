@@ -11,6 +11,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -122,7 +123,31 @@ TEST_CASE("EdgeGateway publishes samples to configured file and agent channels",
     CHECK(agentJson[0]["sensor_id"] == "TEMP-001");
     CHECK(agentJson[0]["value"] == Catch::Approx(42.5));
     CHECK(agentJson[1]["sensor_id"] == "TEMP-001");
-    CHECK(agentJson[1]["value"] == Catch::Approx(41.25));
+   CHECK(agentJson[1]["value"] == Catch::Approx(41.25));
+   removeAll(tempDir);
+}
+TEST_CASE("EdgeGateway ignores invalid channel entries but still publishes via valid ones", "[integration][gateway][config]")
+{
+    const auto tempDir = makeTempDir("secure-edge-platform-invalid-channels");
+    const auto configPath = tempDir / "gateway_config.json";
+    const auto validFilePath = tempDir / "valid-output.ndjson";
+    const nlohmann::json config = {
+        {"channels",
+         nlohmann::json::array({
+             nlohmann::json{{"type", "unknown"}},
+             nlohmann::json{{"type", "file"}},
+             nlohmann::json{{"type", "file"}, {"path", validFilePath.string()}},
+         })}};
+    writeJson(configPath, config);
+    gateway::EdgeGateway gateway;
+    gateway.start(configPath.string());
+    gateway.setSampleCallbackForTest();
+    cppminidb::SensorLogRow sample{3'000, "PRESS-007", 12.75, {"calibrating"}};
+    gateway.injectTestSample(sample);
+    REQUIRE(std::filesystem::exists(validFilePath));
+    const auto content = readFile(validFilePath);
+    CHECK(countOccurrences(content, "\"sensorId\": \"PRESS-007\"") == 1);
+    CHECK(content.find("\"value\": 12.75") != std::string::npos);
     removeAll(tempDir);
 }
 TEST_CASE("EdgeGateway runLoop produces telemetry using scheduled sensors", "[integration][gateway][scheduler]")
@@ -147,5 +172,68 @@ TEST_CASE("EdgeGateway runLoop produces telemetry using scheduled sensors", "[in
     const auto content = readFile(filePath);
     REQUIRE_FALSE(content.empty());
     CHECK(content.find("\"sensorId\": \"TEMP-001\"") != std::string::npos);
+    removeAll(tempDir);
+}
+TEST_CASE("EdgeGateway runLoop prevents concurrent restarts", "[integration][gateway][concurrency]")
+{
+    const auto tempDir = makeTempDir("secure-edge-platform-runloop");
+    const auto configPath = tempDir / "gateway_config.json";
+    const auto filePath = tempDir / "runloop-output.ndjson";
+    const nlohmann::json config = {
+        {"channels",
+         nlohmann::json::array({
+             nlohmann::json{{"type", "file"}, {"path", filePath.string()}},
+         })}};
+    writeJson(configPath, config);
+    gateway::EdgeGateway gateway;
+    gateway.start(configPath.string());
+
+    std::thread loopThread([&gateway]()
+                           { gateway.runLoop(); });
+    std::this_thread::sleep_for(std::chrono::milliseconds(150));
+
+    auto duplicateRun = std::async(std::launch::async, [&gateway]()
+                                   { gateway.runLoop(); });
+    auto status = duplicateRun.wait_for(std::chrono::milliseconds(250));
+    REQUIRE(status == std::future_status::ready);
+    REQUIRE_NOTHROW(duplicateRun.get());
+
+    gateway.stopLoop();
+    loopThread.join();
+
+    REQUIRE(std::filesystem::exists(filePath));
+    const auto content = readFile(filePath);
+    REQUIRE_FALSE(content.empty());
+    removeAll(tempDir);
+}
+TEST_CASE("EdgeGateway start is idempotent for default sensor scheduling", "[integration][gateway][scheduler]")
+{
+    const auto tempDir = makeTempDir("secure-edge-platform-idempotent-start");
+    const auto configPath = tempDir / "gateway_config.json";
+    const auto filePath = tempDir / "idempotent-output.ndjson";
+    const nlohmann::json config = {
+        {"channels",
+         nlohmann::json::array({
+             nlohmann::json{{"type", "file"}, {"path", filePath.string()}},
+         })}};
+    writeJson(configPath, config);
+    gateway::EdgeGateway gateway;
+    gateway.start(configPath.string());
+    const auto firstIds = gateway.getScheduler().getSensorIds();
+    REQUIRE(firstIds.size() == 1);
+    CHECK(firstIds.front() == "TEMP-001");
+
+    gateway.start(configPath.string());
+    const auto secondIds = gateway.getScheduler().getSensorIds();
+    REQUIRE(secondIds.size() == 1);
+    CHECK(secondIds.front() == "TEMP-001");
+
+    gateway.setSampleCallbackForTest();
+    cppminidb::SensorLogRow sample{4'000, "TEMP-001", 55.5, {}};
+    gateway.injectTestSample(sample);
+    REQUIRE(std::filesystem::exists(filePath));
+    const auto content = readFile(filePath);
+    CHECK(countOccurrences(content, "\"sensorId\": \"TEMP-001\"") == 1);
+    CHECK(content.find("\"value\": 55.5") != std::string::npos);
     removeAll(tempDir);
 }
