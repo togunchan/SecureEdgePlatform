@@ -37,7 +37,6 @@ void SecureEdgePlatformController::start()
         running_.store(false);
         return;
     }
-
     loopThread_ = std::thread([this]()
                               { runLoop(); });
 }
@@ -53,6 +52,16 @@ void SecureEdgePlatformController::stop()
 
     if (loopThread_.joinable())
         loopThread_.join();
+}
+
+gateway::EdgeGateway &SecureEdgePlatformController::getGateway()
+{
+    return gateway_;
+}
+
+const gateway::EdgeGateway &SecureEdgePlatformController::getGateway() const
+{
+    return gateway_;
 }
 
 void SecureEdgePlatformController::runLoop()

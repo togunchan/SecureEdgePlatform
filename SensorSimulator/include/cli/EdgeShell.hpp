@@ -13,10 +13,16 @@
 
 namespace sensor
 {
+    enum class Mode
+    {
+        Full,      // all commands
+        Restricted // only injection-related
+    };
+
     class EdgeShell
     {
     public:
-        void run();
+        void run(Mode mode = Mode::Full);
         void listSensors() const;
         void stepAllSensors();
         void stepSensor(const std::string &sensorId);
@@ -30,12 +36,21 @@ namespace sensor
         const std::unordered_map<std::string, std::unique_ptr<ISensor>> &getSensors() const;
         bool removeSensor(const std::string &id);
         void stop();
+        void setScheduler(sensor::SensorScheduler *externalScheduler);
 
     private:
         void handleCommand(const std::string &line);
         void addDefaultSensor();
+        sensor::SensorScheduler &activeScheduler()
+        {
+            return external_scheduler_ ? *external_scheduler_ : scheduler_;
+        }
+        const sensor::SensorScheduler &activeScheduler() const
+        {
+            return external_scheduler_ ? *external_scheduler_ : scheduler_;
+        }
 
-        std::unordered_map<std::string, std::unique_ptr<ISensor>> sensors_;
+        std::unordered_map<std::string, std::unique_ptr<ISensor>> owned_sensors_;
         std::unique_ptr<cli::CommandRegistry> registry_;
         sensor::SensorScheduler scheduler_;
         std::atomic<bool> is_running_{false};
@@ -45,6 +60,8 @@ namespace sensor
         MiniDB *db_ = nullptr;
         std::condition_variable cv_;
         std::mutex cv_mutex_;
+        Mode current_mode_{Mode::Full};
+        sensor::SensorScheduler *external_scheduler_ = nullptr;
     };
 
 } // namespace sensor

@@ -13,6 +13,8 @@ public:
 
     void start();
     void stop();
+    gateway::EdgeGateway &getGateway();
+    const gateway::EdgeGateway &getGateway() const;
 
 private:
     friend class PlatformShell;

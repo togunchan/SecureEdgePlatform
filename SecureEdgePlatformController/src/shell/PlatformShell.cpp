@@ -1,9 +1,9 @@
 #include <shell/PlatformShell.hpp>
-#include <cli/commands/ListCommand.hpp>
 #include <cli/commands/CommandRegistry.hpp>
 
 PlatformShell::PlatformShell(SecureEdgePlatformController &controller) : controller_(controller)
 {
+    edgeShell_.setScheduler(&controller_.getGateway().getScheduler());
     registerCommands();
 }
 
@@ -26,10 +26,12 @@ void PlatformShell::registerCommands()
                       { controller_.stop();
                         std::cout << "[Shell] Exiting...\n";
                         std::exit(0); });
-
-    cli::CommandRegistry registry;
-    registry.registerCommand(std::make_unique<cli::ListCommand>(edgeShell_));
-    std::cout << "[Shell] Integrated ListCommand from SensorSimulator.\n";
+    commands_.emplace("sensors", [this]()
+                      {
+                        std::cout << "[Shell] Entering Sensor Management Mode...\n";
+                        controller_.stop();
+                        edgeShell_.run(sensor::Mode::Restricted);
+                        std::cout << "[Shell] Exited Fault Injection Mode.\n"; });
 }
 
 void PlatformShell::run()
@@ -39,7 +41,7 @@ void PlatformShell::run()
 
     while (true)
     {
-        std::cout << "> ";
+        std::cout << "> " << std::flush;
         if (!std::getline(std::cin, input))
             break;
 

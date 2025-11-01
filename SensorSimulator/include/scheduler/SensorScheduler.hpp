@@ -27,6 +27,7 @@ namespace sensor
         void listSensorStates() const;
 
         SimpleSensor *getScheduledSensor(const std::string &id) const;
+        std::vector<std::string> getSensorIds() const;
 
         // Returns the current simulation time
         uint64_t getNow() const;

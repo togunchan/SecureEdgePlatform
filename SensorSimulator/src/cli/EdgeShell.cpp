@@ -29,9 +29,10 @@ using namespace sensor;
 
 static uint64_t global_time = 0;
 
-void EdgeShell::run()
+void EdgeShell::run(Mode mode)
 {
     std::cout << "Welcome to EdgeShell - Multi-Sensor Fault Injector\n";
+    current_mode_ = mode;
     printHelp();
 
     addDefaultSensor();
@@ -42,31 +43,42 @@ void EdgeShell::run()
             {"timestamp_ms", "sensor_id", "value", "fault_flags"},
             {MiniDB::ColumnType::Int, MiniDB::ColumnType::String,
              MiniDB::ColumnType::Float, MiniDB::ColumnType::String});
-        scheduler_.setDatabase(db_);
+        activeScheduler().setDatabase(db_);
     }
 
     registry_ = std::make_unique<cli::CommandRegistry>();
-    registry_->registerCommand(std::make_unique<cli::ListCommand>(*this));
-    registry_->registerCommand(std::make_unique<cli::StepCommand>(*this));
-    registry_->registerCommand(std::make_unique<cli::InjectCommand>(*this));
-    registry_->registerCommand(std::make_unique<cli::ResetCommand>(*this));
-    registry_->registerCommand(std::make_unique<cli::AddCommand>(*this));
-    registry_->registerCommand(std::make_unique<cli::HelpCommand>(*this));
-    registry_->registerCommand(std::make_unique<cli::TickCommand>(*this));
-    registry_->registerCommand(std::make_unique<cli::PlotCommand>(*this));
-    registry_->registerCommand(std::make_unique<cli::StatusCommand>(scheduler_));
-    registry_->registerCommand(std::make_unique<cli::RunCommand>(scheduler_, is_running_, run_thread_, cv_, cv_mutex_));
-    registry_->registerCommand(std::make_unique<cli::StopCommand>(*this));
-    registry_->registerCommand(std::make_unique<cli::RunPlotCommand>(*this, is_plotting_, plot_thread_));
-    registry_->registerCommand(std::make_unique<cli::StopPlotCommand>(is_plotting_, plot_thread_));
-    registry_->registerCommand(std::make_unique<cli::LogStatusCommand>(db_));
-    registry_->registerCommand(std::make_unique<cli::SaveLogCommand>(db_));
-    registry_->registerCommand(std::make_unique<cli::LoadLogCommand>(db_));
-    registry_->registerCommand(std::make_unique<cli::ClearLogCommand>(db_));
-    registry_->registerCommand(std::make_unique<cli::ExportLogCommand>(db_));
-    registry_->registerCommand(std::make_unique<cli::QueryLogCommand>(db_));
-    registry_->registerCommand(std::make_unique<cli::ImportLogCommand>(db_));
-    registry_->registerCommand(std::make_unique<cli::RemoveCommand>(*this));
+    if (mode == Mode::Full)
+    {
+        registry_->registerCommand(std::make_unique<cli::ListCommand>(*this));
+        registry_->registerCommand(std::make_unique<cli::StepCommand>(*this));
+        registry_->registerCommand(std::make_unique<cli::InjectCommand>(*this));
+        registry_->registerCommand(std::make_unique<cli::ResetCommand>(*this));
+        registry_->registerCommand(std::make_unique<cli::AddCommand>(*this));
+        registry_->registerCommand(std::make_unique<cli::HelpCommand>(*this));
+        registry_->registerCommand(std::make_unique<cli::TickCommand>(*this));
+        registry_->registerCommand(std::make_unique<cli::PlotCommand>(*this));
+        registry_->registerCommand(std::make_unique<cli::StatusCommand>(activeScheduler()));
+        registry_->registerCommand(std::make_unique<cli::RunCommand>(activeScheduler(), is_running_, run_thread_, cv_, cv_mutex_));
+        registry_->registerCommand(std::make_unique<cli::StopCommand>(*this));
+        registry_->registerCommand(std::make_unique<cli::RunPlotCommand>(*this, is_plotting_, plot_thread_));
+        registry_->registerCommand(std::make_unique<cli::StopPlotCommand>(is_plotting_, plot_thread_));
+        registry_->registerCommand(std::make_unique<cli::LogStatusCommand>(db_));
+        registry_->registerCommand(std::make_unique<cli::SaveLogCommand>(db_));
+        registry_->registerCommand(std::make_unique<cli::LoadLogCommand>(db_));
+        registry_->registerCommand(std::make_unique<cli::ClearLogCommand>(db_));
+        registry_->registerCommand(std::make_unique<cli::ExportLogCommand>(db_));
+        registry_->registerCommand(std::make_unique<cli::QueryLogCommand>(db_));
+        registry_->registerCommand(std::make_unique<cli::ImportLogCommand>(db_));
+        registry_->registerCommand(std::make_unique<cli::RemoveCommand>(*this));
+    }
+    else
+    {
+        registry_->registerCommand(std::make_unique<cli::AddCommand>(*this));
+        registry_->registerCommand(std::make_unique<cli::ListCommand>(*this));
+        registry_->registerCommand(std::make_unique<cli::InjectCommand>(*this));
+        registry_->registerCommand(std::make_unique<cli::ResetCommand>(*this));
+        registry_->registerCommand(std::make_unique<cli::HelpCommand>(*this));
+    }
 
     std::string line;
     while (true)
@@ -81,39 +93,51 @@ void EdgeShell::run()
 
 void EdgeShell::printHelp() const
 {
-    std::cout << "Commands:\n"
-              << "  list                         - List all sensors\n"
-              << "  step <id>                    - Generate sample from given sensor\n"
-              << "  step all                     - Generate samples from all sensors\n"
-              << "  inject <type> <id> [p1 p2]   - Inject fault (spike/stuck/dropout) with optional params\n"
-              << "                                 e.g. inject spike TEMP-001 5.0 0.3\n"
-              << "  reset <id>                   - Reset sensor\n"
-              << "  add <id>                     - Add new sensor with given ID\n"
-              << "  remove <id>                  - Remove an existing sensor by ID\n"
-              << "  tick <delta_ms>              - Advance time and sample as needed\n"
-              << "  run                          - Start real-time simulation (ticks every 1s)\n"
-              << "  stop                         - Stop real-time simulation\n"
-              << "  runplot <id>                 - Start real-time plot\n"
-              << "  stopplot                     - Stop real-time plot\n"
-              << "  plot <id>                    - Plot sensor data\n"
-              << "  status <id>                  - Show active faults on given sensor\n"
-              << "  logstatus [filters]          - Show logged sensor entries with optional filters\n"
-              << "                                 e.g. logstatus TEMP-001 last=5\n"
-              << "  logstatus                    - Show last few logged sensor entries\n"
-              << "  savelog                      - Save logs to .tbl file (in ./data folder)\n"
-              << "  loadlog                      - Load logs from disk into memory\n"
-              << "  clearlog                     - Clear all logs from memory and disk\n"
-              << "  exportlog [options]          - Export logs to JSON file\n"
-              << "                                 e.g. exportlog filename=logs.json\n"
-              << "                                 e.g. exportlog source=disk filename=backup.json\n"
-              << "  querylog <conds> [source=..] - Query logs with conditions\n"
-              << "                                 e.g. querylog column=value op== value=25.0\n"
-              << "                                 e.g. querylog column=sensor_id op== value=TEMP-001 source=disk\n"
-              << "  importlog [options]          - Import logs from JSON into memory or disk\n"
-              << "                                 e.g. importlog filename=backup.json\n"
-              << "                                 e.g. importlog target=disk filename=logs.json\n"
-              << "  help                         - Show help\n"
-              << "  exit                         - Exit program\n";
+    std::cout << "Commands:\n";
+    if (current_mode_ == Mode::Restricted)
+    {
+        std::cout
+            << "  add <id>                     - Add new sensor with given ID\n"
+            << "  inject <type> <id> [p1 p2]   - Inject fault (spike/stuck/dropout) with optional params\n"
+            << "                                 e.g. inject spike TEMP-001 5.0 0.3\n"
+            << "  reset <id>                   - Reset sensor\n"
+            << "  list                         - List all sensors\n"
+            << "  help                         - Show help\n"
+            << "  exit                         - Exit program\n";
+        return;
+    }
+    std::cout
+        << "  list                         - List all sensors\n"
+        << "  step <id>                    - Generate sample from given sensor\n"
+        << "  step all                     - Generate samples from all sensors\n"
+        << "  add <id>                     - Add new sensor with given ID\n"
+        << "  remove <id>                  - Remove an existing sensor by ID\n"
+        << "  tick <delta_ms>              - Advance time and sample as needed\n"
+        << "  run                          - Start real-time simulation (ticks every 1s)\n"
+        << "  stop                         - Stop real-time simulation\n"
+        << "  runplot <id>                 - Start real-time plot\n"
+        << "  stopplot                     - Stop real-time plot\n"
+        << "  plot <id>                    - Plot sensor data\n"
+        << "  status <id>                  - Show active faults on given sensor\n"
+        << "  logstatus [filters]          - Show logged sensor entries with optional filters\n"
+        << "                                 e.g. logstatus TEMP-001 last=5\n"
+        << "  savelog                      - Save logs to .tbl file (in ./data folder)\n"
+        << "  loadlog                      - Load logs from disk into memory\n"
+        << "  clearlog                     - Clear all logs from memory and disk\n"
+        << "  exportlog [options]          - Export logs to JSON file\n"
+        << "                                 e.g. exportlog filename=logs.json\n"
+        << "                                 e.g. exportlog source=disk filename=backup.json\n"
+        << "  querylog <conds> [source=..] - Query logs with conditions\n"
+        << "                                 e.g. querylog column=value op== value=25.0\n"
+        << "                                 e.g. querylog column=sensor_id op== value=TEMP-001 source=disk\n"
+        << "  importlog [options]          - Import logs from JSON into memory or disk\n"
+        << "                                 e.g. importlog filename=backup.json\n"
+        << "                                 e.g. importlog target=disk filename=logs.json\n"
+        << "  inject <type> <id> [p1 p2]   - Inject fault (spike/stuck/dropout) with optional params\n"
+        << "                                 e.g. inject spike TEMP-001 5.0 0.3\n"
+        << "  reset <id>                   - Reset sensor\n"
+        << "  help                         - Show help\n"
+        << "  exit                         - Exit program\n";
 }
 
 void EdgeShell::handleCommand(const std::string &line)
@@ -140,6 +164,11 @@ void EdgeShell::handleCommand(const std::string &line)
 
 void EdgeShell::addDefaultSensor()
 {
+    if (owned_sensors_.find("TEMP-001") != owned_sensors_.end() || activeScheduler().getScheduledSensor("TEMP-001"))
+    {
+        return;
+    }
+
     SensorSpec spec = makeDefaultTempSpec();
     spec.id = "TEMP-001";
     spec.type = "TEMP";
@@ -150,27 +179,33 @@ void EdgeShell::addDefaultSensor()
     spec.noise.gaussian_sigma = 0.2;
     auto sensor = std::make_unique<SimpleSensor>(spec);
     ISensor *sensorPtr = sensor.get();
-    sensors_["TEMP-001"] = std::move(sensor);
-    scheduler_.addScheduledSensor("TEMP-001", sensorPtr, 1000);
+    owned_sensors_["TEMP-001"] = std::move(sensor);
+    activeScheduler().addScheduledSensor("TEMP-001", sensorPtr, 1000);
 }
 
 void EdgeShell::listSensors() const
 {
-    for (const auto &sensor : sensors_)
+    auto ids = activeScheduler().getSensorIds();
+    if (ids.empty())
     {
-        std::cout << sensor.first << "\n";
+        std::cout << "No sensors available.\n";
+        return;
+    }
+    for (const auto &id : ids)
+    {
+        std::cout << id << "\n";
     }
 }
 
 void EdgeShell::stepSensor(const std::string &sensorId)
 {
-    if (sensors_.find(sensorId) == sensors_.end())
+    auto scheduled = activeScheduler().getScheduledSensorAs<sensor::SimpleSensor>(sensorId);
+    if (!scheduled)
     {
         std::cout << "Sensor not found: " << sensorId << "\n";
         return;
     }
-    auto &sensor = sensors_[sensorId];
-    auto sample = sensor->nextSample(global_time);
+    auto sample = scheduled->nextSample(global_time);
     global_time += 1000;
     std::cout << "Sample @ " << global_time
               << " ms [" << sensorId << "] → value: " << sample.value
@@ -179,14 +214,12 @@ void EdgeShell::stepSensor(const std::string &sensorId)
 
 void EdgeShell::injectFault(const std::string &faultType, const std::string &sensorId, const std::vector<std::string> &params)
 {
-    if (sensors_.find(sensorId) == sensors_.end())
+    auto *scheduledSensor = activeScheduler().getScheduledSensorAs<sensor::SimpleSensor>(sensorId);
+    if (!scheduledSensor)
     {
-        std::cout << "Sensor not found: " << sensorId << "\n";
+        std::cout << "Sensor not scheduled: " << sensorId << "\n";
         return;
     }
-
-    auto &sensor = sensors_[sensorId];
-    auto *scheduledSensor = scheduler_.getScheduledSensorAs<sensor::SimpleSensor>(sensorId);
 
     if (faultType == "spike")
     {
@@ -199,7 +232,7 @@ void EdgeShell::injectFault(const std::string &faultType, const std::string &sen
         if (params.size() >= 2)
             sigma = std::stod(params[1]);
 
-        int64_t now = scheduler_.getNow();
+        int64_t now = activeScheduler().getNow();
         scheduledSensor->triggerSpikeFault(mag, sigma, now);
 
         std::cout << "Triggered transient spike on " << sensorId
@@ -212,7 +245,7 @@ void EdgeShell::injectFault(const std::string &faultType, const std::string &sen
             duration_ms = std::stoi(params[0]);
         std::cout << "Duration MS is ->> " << duration_ms << "\n";
 
-        int64_t now = scheduler_.getNow();
+        int64_t now = activeScheduler().getNow();
         double current_value = scheduledSensor->getHistory().empty()
                                    ? scheduledSensor->getSpec().base_level
                                    : scheduledSensor->getHistory().back();
@@ -228,7 +261,7 @@ void EdgeShell::injectFault(const std::string &faultType, const std::string &sen
         if (!params.empty())
             duration_ms = std::stoi(params[0]);
 
-        auto now = scheduler_.getNow();
+        auto now = activeScheduler().getNow();
 
         scheduledSensor->triggerDropoutFault(now, duration_ms);
 
@@ -243,19 +276,19 @@ void EdgeShell::injectFault(const std::string &faultType, const std::string &sen
 
 void EdgeShell::resetSensor(const std::string &sensorId)
 {
-    if (sensors_.find(sensorId) == sensors_.end())
+    auto *sensor = activeScheduler().getScheduledSensorAs<sensor::SimpleSensor>(sensorId);
+    if (!sensor)
     {
         std::cout << "Sensor not found: " << sensorId << "\n";
         return;
     }
-
-    sensors_[sensorId]->reset(42);
+    sensor->reset(42);
     std::cout << "Sensor reset: " << sensorId << "\n";
 }
 
 void EdgeShell::addScheduledSensor(const std::string &sensorId, uint64_t period_ms)
 {
-    if (sensors_.find(sensorId) != sensors_.end())
+    if (owned_sensors_.find(sensorId) != owned_sensors_.end() || activeScheduler().getScheduledSensor(sensorId))
     {
         std::cout << "Sensor already exists: " << sensorId << "\n";
         return;
@@ -284,21 +317,25 @@ void EdgeShell::addScheduledSensor(const std::string &sensorId, uint64_t period_
 
     auto sensor = std::make_unique<SimpleSensor>(spec);
     ISensor *sensorPtr = sensor.get();
-    sensors_[sensorId] = std::move(sensor);
-    scheduler_.addScheduledSensor(sensorId, sensorPtr, period_ms);
+    owned_sensors_[sensorId] = std::move(sensor);
+    activeScheduler().addScheduledSensor(sensorId, sensorPtr, period_ms);
     std::cout << "Sensor added: " << sensorId << "\n";
 }
 
 void EdgeShell::stepAllSensors()
 {
-    if (sensors_.empty())
+    auto ids = activeScheduler().getSensorIds();
+    if (ids.empty())
     {
         std::cout << "No sensors available.\n";
         return;
     }
 
-    for (auto &[id, sensor] : sensors_)
+    for (const auto &id : ids)
     {
+        auto *sensor = activeScheduler().getScheduledSensorAs<sensor::SimpleSensor>(id);
+        if (!sensor)
+            continue;
         auto sample = sensor->nextSample(global_time);
         std::cout << " " << id << " → value: " << sample.value << "\n";
     }
@@ -310,13 +347,13 @@ void EdgeShell::tickTime(uint64_t delta_ms)
     std::cout << "[Advancing time by " << delta_ms << " ms]\n";
     for (int i = 0; i < 25; ++i)
     {
-        scheduler_.tick(delta_ms);
+        activeScheduler().tick(delta_ms);
     }
 }
 
 void EdgeShell::plotSensorData(const std::string &sensorId) const
 {
-    auto sensor = scheduler_.getScheduledSensorAs<sensor::SimpleSensor>(sensorId);
+    auto sensor = activeScheduler().getScheduledSensorAs<sensor::SimpleSensor>(sensorId);
     if (!sensor)
     {
         std::cout << "Sensor not found: " << sensorId << "\n";
@@ -405,17 +442,17 @@ void EdgeShell::setDatabase(MiniDB *db) { db_ = db; }
 
 const std::unordered_map<std::string, std::unique_ptr<ISensor>> &EdgeShell::getSensors() const
 {
-    return sensors_;
+    return owned_sensors_;
 }
 
 bool EdgeShell::removeSensor(const std::string &id)
 {
-    scheduler_.removeScheduledSensor(id);
+    activeScheduler().removeScheduledSensor(id);
 
-    auto it = sensors_.find(id);
-    if (it != sensors_.end())
+    auto it = owned_sensors_.find(id);
+    if (it != owned_sensors_.end())
     {
-        sensors_.erase(it);
+        owned_sensors_.erase(it);
         return true;
     }
     return false;
@@ -439,4 +476,9 @@ void EdgeShell::stop()
         run_thread_.join();
 
     std::cout << "Stopped real-time simulation.\n";
+}
+
+void EdgeShell::setScheduler(sensor::SensorScheduler *externalScheduler)
+{
+    external_scheduler_ = externalScheduler;
 }

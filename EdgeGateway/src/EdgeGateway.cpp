@@ -6,6 +6,7 @@
 #include <memory>
 #include <GatewayConfig.hpp>
 #include <sensors/Spec.hpp>
+#include <sensors/SimpleSensor.hpp>
 #include <thread>
 #include <AgentChannel.hpp>
 #include <filesystem>
@@ -20,6 +21,8 @@ namespace gateway
     void EdgeGateway::start(const std::string &configPath)
     {
         channel::GatewayConfig config(std::vector<channel::ChannelConfig>{});
+
+        channels_.clear();
 
         std::filesystem::path pathToUse = configPath.empty()
                                               ? (std::filesystem::path(__FILE__).parent_path().parent_path() / "data" / "gateway_config.json")
@@ -70,6 +73,29 @@ namespace gateway
             return;
         }
 
+        const std::string defaultSensorId = "TEMP-001";
+        if (!scheduler_.getScheduledSensor(defaultSensorId))
+        {
+            auto spec = sensor::makeDefaultTempSpec();
+            spec.id = defaultSensorId;
+
+            auto owned = sensors_.find(defaultSensorId);
+            sensor::ISensor *sensorPtr = nullptr;
+            if (owned == sensors_.end())
+            {
+                auto sensor = std::make_unique<sensor::SimpleSensor>(spec);
+                sensorPtr = sensor.get();
+                sensors_.emplace(defaultSensorId, std::move(sensor));
+            }
+            else
+            {
+                sensorPtr = owned->second.get();
+            }
+
+            scheduler_.addScheduledSensor(defaultSensorId, sensorPtr, 1000);
+            std::cout << "[EdgeGateway] Scheduled default sensor: " << defaultSensorId << "\n";
+        }
+
         running_.store(false);
         scheduler_.onSample = [this](const cppminidb::SensorLogRow &row)
         {
@@ -82,19 +108,25 @@ namespace gateway
                 channel->publish(row);
             }
         };
-        auto spec = sensor::makeDefaultTempSpec();
-        spec.id = "TEMP-001";
-        if (sensors_.find(spec.id) != sensors_.end())
-        {
-            std::cerr << "[EdgeGateway] Sensor already registered: " << spec.id << "\n";
-            return;
-        }
+        // auto spec = sensor::makeDefaultTempSpec();
+        // spec.id = "TEMP-001";
+        // if (scheduler_.getScheduledSensor(spec.id))
+        // {
+        //     std::cout << "[EdgeGateway] Sensor already scheduled: " << spec.id << "\n";
+        //     return;
+        // }
 
-        auto sensor = std::make_unique<sensor::SimpleSensor>(spec);
-        sensor::ISensor *sensorPtr = sensor.get();
-        sensors_.emplace(spec.id, std::move(sensor));
-        scheduler_.addScheduledSensor(spec.id, sensorPtr, 1000);
-        std::cout << "Sensor added: " << spec.id << "\n";
+        // if (sensors_.find(spec.id) != sensors_.end())
+        // {
+        //     std::cerr << "[EdgeGateway] Sensor already registered: " << spec.id << "\n";
+        //     return;
+        // }
+
+        // auto sensor = std::make_unique<sensor::SimpleSensor>(spec);
+        // sensor::ISensor *sensorPtr = sensor.get();
+        // sensors_.emplace(spec.id, std::move(sensor));
+        // scheduler_.addScheduledSensor(spec.id, sensorPtr, 1000);
+        // std::cout << "Sensor added: " << spec.id << "\n";
     }
 
     void EdgeGateway::setChannelsForTest(std::unique_ptr<channel::IGatewayChannel> ch)
@@ -132,13 +164,12 @@ namespace gateway
             return;
         }
         running_.store(true, std::memory_order_release);
-        std::cout << "[EdgeGateway] Starting run loop. Press Ctrl+C to exit.\n";
+        std::cout << "[EdgeGateway] Starting run loop. Press Ctrl+C to exit." << std::endl;
         const uint64_t tick_interval_ms = 1000;
         while (keepRunning.load(std::memory_order_acquire))
         {
             scheduler_.tick(tick_interval_ms);
-            if (!keepRunning.load(std::memory_order_acquire))
-                break;
+
             std::this_thread::sleep_for(std::chrono::milliseconds(tick_interval_ms));
         }
         running_.store(false, std::memory_order_release);
@@ -152,6 +183,16 @@ namespace gateway
         {
             std::cout << "[EdgeGateway] Stop requested. Waiting for loop to exit...\n";
         }
+    }
+
+    sensor::SensorScheduler &EdgeGateway::getScheduler()
+    {
+        return scheduler_;
+    }
+
+    const sensor::SensorScheduler &EdgeGateway::getScheduler() const
+    {
+        return scheduler_;
     }
 
 } // namespace gateway
