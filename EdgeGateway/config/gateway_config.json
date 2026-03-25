@@ -5,7 +5,7 @@
     },
     {
       "type": "file",
-      "path": "logs/output.json"
+      "path": "../runtime/logs/output.json"
     },
     {
       "type": "agent"

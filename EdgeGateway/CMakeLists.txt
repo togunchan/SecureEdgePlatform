@@ -1,8 +1,6 @@
 add_library(edgegateway
     src/ConsoleChannel.cpp
     src/FileChannel.cpp
-    src/main_gateway.cpp
-    src/SensorLogRow.cpp
     src/GatewayConfig.cpp
     src/EdgeGateway.cpp
     src/AgentChannel.cpp
@@ -23,7 +21,7 @@ target_link_libraries(edgegateway
         edge_agent
 )
 
-add_executable(EdgeGatewayRunner src/main_gateway.cpp)
+add_executable(EdgeGatewayRunner apps/main_gateway.cpp)
 target_link_libraries(EdgeGatewayRunner PUBLIC edgegateway)
 
 add_executable(test_edgegateway

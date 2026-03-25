@@ -12,7 +12,7 @@ target_include_directories(edge_agent PUBLIC
 target_compile_features(edge_agent PRIVATE cxx_std_20)
 
 add_executable(test_telemetry
-    tests/test_telemetry.cpp
+    examples/test_telemetry.cpp
 )
 
 target_include_directories(test_telemetry PRIVATE

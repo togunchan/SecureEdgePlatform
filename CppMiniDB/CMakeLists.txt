@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 # Source files
 add_library(minidb
     src/MiniDB.cpp
+    src/SensorLogRow.cpp
 )
 
 # Add nlohmann/json include path (single header mode)

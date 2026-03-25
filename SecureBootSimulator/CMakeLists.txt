@@ -56,7 +56,7 @@ include(Catch)
 catch_discover_tests(test_secureboot)
 
 add_executable(SecureBootRunner
-    src/main.cpp
+    apps/main.cpp
 )
 
 target_link_libraries(SecureBootRunner

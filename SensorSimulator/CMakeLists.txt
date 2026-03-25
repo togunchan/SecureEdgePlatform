@@ -83,7 +83,7 @@ catch_discover_tests(test_cli)
 # Shell executable
 # --------------------------
 add_executable(EdgeShell
-    src/main_shell.cpp
+    apps/main_shell.cpp
 )
 
 target_include_directories(EdgeShell

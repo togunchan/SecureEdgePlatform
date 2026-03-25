@@ -16,7 +16,7 @@ add_subdirectory(SecureEdgePlatformRunner)
 
 if(BUILD_TESTING)
     add_executable(test_full_platform
-        tests/test_full_platform.cpp
+        tests/integration/test_full_platform.cpp
     )
     target_link_libraries(test_full_platform
         PRIVATE

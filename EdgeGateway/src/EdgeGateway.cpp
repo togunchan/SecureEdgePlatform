@@ -25,7 +25,7 @@ namespace gateway
         channels_.clear();
 
         std::filesystem::path pathToUse = configPath.empty()
-                                              ? (std::filesystem::path(__FILE__).parent_path().parent_path() / "data" / "gateway_config.json")
+                                              ? (std::filesystem::path(__FILE__).parent_path().parent_path() / "config" / "gateway_config.json")
                                               : std::filesystem::path(configPath);
 
         if (!config.loadFromFile(pathToUse.string()))
